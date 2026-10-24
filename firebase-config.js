@@ -1,0 +1,12 @@
+// Firebase الجديد: emtr-10091. ضع databaseURL الحقيقي بعد إنشاء Realtime Database.
+export const firebaseConfig = {
+ apiKey: "AIzaSyA6GHkYt-BpjqoA51CZrJb3TjWXS-ux1LE",
+ authDomain: "emtr-10091.firebaseapp.com",
+ databaseURL: "PASTE_REALTIME_DATABASE_URL_HERE",
+ projectId: "emtr-10091",
+ storageBucket: "emtr-10091.firebasestorage.app",
+ messagingSenderId: "640106990620",
+ appId: "1:640106990620:web:4f79728bf100dc898b63d9",
+ measurementId: "G-YS4KQT50PK"
+};
+export const vapidKey = "BISnwhTpR0ybZO0PLgKeMQaEtfy-BVucjrAK2KuK71a8XQuSBk27NoZOzcQMoAYPh-ai5CFPV27nIlX5VyxWIBc";
