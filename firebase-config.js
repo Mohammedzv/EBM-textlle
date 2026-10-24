@@ -1,4 +1,4 @@
-// Firebase الجديد: emtr-10091. ضع databaseURL الحقيقي بعد إنشاء Realtime Database.
+// Firebase project: emtr-10091. استبدل databaseURL بالرابط الظاهر في Firebase Console > Realtime Database.
 export const firebaseConfig = {
  apiKey: "AIzaSyA6GHkYt-BpjqoA51CZrJb3TjWXS-ux1LE",
  authDomain: "emtr-10091.firebaseapp.com",

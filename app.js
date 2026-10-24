@@ -119,6 +119,59 @@ $("form").onsubmit=e=>{e.preventDefault();let d=Object.fromEntries(new FormData(
 document.addEventListener("click",e=>{let t=e.target;if(t.id==="scanSerial"){$("scanBackdrop").classList.add("show");$("scanMessage").textContent="اضغط بدء الكاميرا واسمح باستخدام الكاميرا."}if(t.dataset.delMachine){if(state.reports.some(r=>r.machineId===t.dataset.delMachine)){msg("لا يمكن حذف ماكينة مرتبطة ببلاغ");return}if(confirm("حذف الماكينة؟")){state.machines=state.machines.filter(m=>m.id!==t.dataset.delMachine);save()}}if(t.dataset.delReport&&confirm("حذف البلاغ؟")){state.reports=state.reports.filter(r=>r.id!==t.dataset.delReport);save()}if(t.dataset.start){let r=state.reports.find(x=>x.id===t.dataset.start);r.status="working";r.startedAt=time();save();msg("تم تسجيل استلام البلاغ")}if(t.dataset.fix){let r=state.reports.find(x=>x.id===t.dataset.fix);if(confirm("تأكيد إنهاء الإصلاح؟")){r.status="fixed";state.maintenance.push({date:time(),machineName:r.machineName,machineCode:r.machineCode,description:r.description,technician:r.technician});let m=state.machines.find(x=>x.id===r.machineId);if(m&&!state.reports.some(x=>x.machineId===m.id&&x.id!==r.id&&x.status!=="fixed"))m.status="تعمل";save();msg("تم تسجيل الإصلاح في سجل الصيانة")}}});
 $("search").oninput=render;$("filter").onchange=render;
 $("alerts").onclick=async()=>{await playAlert();if(!("Notification"in window)){msg("جرّب الصوت الآن؛ المتصفح لا يدعم الإشعارات");return}let p=await Notification.requestPermission();msg(p==="granted"?"تم السماح بإشعارات المتصفح":"اسمح بالإشعارات من إعدادات الموقع إذا أردتها")};
-let dbRef=null;
-if(firebaseConfig.databaseURL&&firebaseConfig.databaseURL!=="PASTE_REALTIME_DATABASE_URL_HERE"){try{initializeApp(firebaseConfig);const db=getDatabase();dbRef=ref(db,"ebmSystem/state");onValue(dbRef,s=>{let d=s.val();if(d){const incoming=Array.isArray(d.reports)?d.reports:[];const newOnes=incoming.filter(r=>!knownReportIds.has(r.id));newOnes.forEach(r=>{if(knownReportIds.size)playAlert();knownReportIds.add(r.id)});state={...blank(),...d};localStorage.setItem(KEY,JSON.stringify(state));render()}$("connection").textContent="● Firebase متصل";$("connection").style.color="#19a974"});const localSave=save;save=()=>{localStorage.setItem(KEY,JSON.stringify(state));render();set(dbRef,state).catch(e=>{console.error(e);msg("تعذر الحفظ في Firebase؛ راجع قواعد البيانات")})}}catch(e){console.error(e);$("connection").textContent="● تعذر الاتصال بـ Firebase"}}
+let dbRef=null, firebaseReady=false, firstSnapshot=true, writing=false;
+const hasLocalData=()=>state.machines.length>0||state.reports.length>0||state.maintenance.length>0;
+function setConnection(text,color){$("connection").textContent=text;$("connection").style.color=color}
+if(!firebaseConfig.databaseURL||firebaseConfig.databaseURL==="PASTE_REALTIME_DATABASE_URL_HERE"){
+ setConnection("● محلي فقط — أدخل رابط Firebase", "#c47b12");
+} else {
+ try {
+  initializeApp(firebaseConfig);
+  const db=getDatabase();
+  dbRef=ref(db,"ebmSystem/state");
+  onValue(dbRef, async snapshot=>{
+   const remote=snapshot.val();
+   if(firstSnapshot){
+    firstSnapshot=false;
+    if(remote){
+     state={...blank(),...remote};
+     localStorage.setItem(KEY,JSON.stringify(state));
+     knownReportIds=new Set(state.reports.map(r=>r.id));
+     render();
+    } else if(hasLocalData()){
+     // Migrate existing data from the first device only when the cloud node is empty.
+     try { writing=true; await set(dbRef,state); writing=false; }
+     catch(err){ writing=false; console.error(err); setConnection("● فشل رفع البيانات الأولية — راجع قواعد Firebase", "#c0392b"); return; }
+    } else {
+     state=blank(); localStorage.setItem(KEY,JSON.stringify(state)); render();
+    }
+   } else if(remote && !writing){
+    const incoming=Array.isArray(remote.reports)?remote.reports:[];
+    incoming.forEach(r=>knownReportIds.add(r.id));
+    state={...blank(),...remote};
+    localStorage.setItem(KEY,JSON.stringify(state));
+    render();
+   }
+   firebaseReady=true;
+   setConnection("● متصل — البيانات مشتركة", "#19a974");
+  }, err=>{
+   console.error("Firebase read error:",err);
+   setConnection("● رفض الوصول — راجع قواعد Firebase", "#c0392b");
+   msg("Firebase رفض قراءة البيانات. راجع قواعد Realtime Database.");
+  });
+  save=()=>{
+   localStorage.setItem(KEY,JSON.stringify(state)); render();
+   if(!firebaseReady||!dbRef){msg("البيانات محفوظة على هذا الجهاز فقط حتى يتصل Firebase");return}
+   writing=true;
+   set(dbRef,state).then(()=>{writing=false;setConnection("● متصل — البيانات مشتركة", "#19a974")}).catch(err=>{
+    writing=false;console.error("Firebase write error:",err);
+    setConnection("● فشل الحفظ المشترك", "#c0392b");
+    msg("لم يتم رفع التعديل. راجع رابط Firebase وقواعد الوصول.");
+   });
+  };
+ } catch(e){
+  console.error("Firebase initialization error:",e);
+  setConnection("● إعداد Firebase غير صحيح", "#c0392b");
+ }
+}
 render();
