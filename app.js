@@ -16,35 +16,34 @@ async function playAlert(){
   [880,660,880].forEach((hz,i)=>{const o=audioCtx.createOscillator(),g=audioCtx.createGain(),t=now+i*.2;o.type="sine";o.frequency.value=hz;g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.22,t+.025);g.gain.exponentialRampToValueAtTime(.001,t+.17);o.connect(g);g.connect(audioCtx.destination);o.start(t);o.stop(t+.18)});
  }catch(err){console.warn("Audio alert unavailable",err);msg("الصوت محجوب من المتصفح؛ اضغط زر التنبيهات مرة ثم جرّب")}
 }
-function stopCamera(){scanLoop=false;if(scanStream){scanStream.getTracks().forEach(t=>t.stop());scanStream=null}const v=$("scanVideo");if(v)v.srcObject=null}
+function stopCamera(){scanLoop=false;if(scanStream){scanStream.getTracks().forEach(t=>t.stop());scanStream=null}const v=$("scanVideo");if(v)v.srcObject=null;const b=$("captureSerial");if(b)b.disabled=true}
 async function startCamera(){
  const message=$("scanMessage"), video=$("scanVideo");
- if(!navigator.mediaDevices?.getUserMedia){message.textContent="الكاميرا لا تعمل من معاينة الملفات. افتح الموقع من رابط HTTPS مثل GitHub Pages، ثم اسمح بالكاميرا.";return}
+ if(!navigator.mediaDevices?.getUserMedia){message.textContent="الكاميرا تحتاج فتح الموقع من HTTPS أو localhost، وليس من معاينة الملفات.";return}
  try{
-  // Modern native detector when available.
-  if("BarcodeDetector" in window){
-   let supported=[];try{supported=await BarcodeDetector.getSupportedFormats()}catch{}
-   const wanted=["qr_code","code_128","code_39","ean_13","ean_8","upc_a","upc_e","itf","codabar"];
-   const formats=wanted.filter(x=>supported.includes(x));
-   if(formats.length){
-    const detector=new BarcodeDetector({formats});
-    scanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false});
-    video.srcObject=scanStream;await video.play();scanLoop=true;message.textContent="وجّه الكاميرا إلى الباركود أو QR وثبّتها لحظة.";
-    const tick=async()=>{if(!scanLoop)return;try{const hits=await detector.detect(video);if(hits.length&&hits[0].rawValue){acceptScannedValue(hits[0].rawValue);return}}catch(err){console.warn(err)}if(scanLoop)requestAnimationFrame(tick)};requestAnimationFrame(tick);return;
-   }
-  }
-  // Fallback decoder for browsers without BarcodeDetector (loaded online).
-  message.textContent="جارٍ تجهيز قارئ الباركود…";
-  const ZXing=await import("https://esm.sh/@zxing/browser@0.1.5");
-  const Reader=ZXing.BrowserMultiFormatReader;
-  if(!Reader)throw new Error("تعذر تحميل قارئ الباركود");
-  scanLoop=true;message.textContent="اسمح بالكاميرا ثم وجّهها إلى الباركود أو QR.";
-  const reader=new Reader();
-  await reader.decodeFromVideoDevice(undefined,video,(result,err,controls)=>{
-   if(!scanLoop){controls?.stop();return}
-   if(result){acceptScannedValue(result.getText());controls?.stop()}
-  });
- }catch(err){console.error("Camera error:",err);stopCamera();message.textContent=err?.name==="NotAllowedError"?"تم رفض إذن الكاميرا. افتح إعدادات الموقع واسمح بالكاميرا ثم أعد المحاولة.":err?.name==="NotFoundError"?"لم يتم العثور على كاميرا في الجهاز.":"تعذر تشغيل الكاميرا. افتح الموقع من HTTPS في Chrome، واسمح بالكاميرا، وتأكد من اتصال الإنترنت."}
+  stopCamera();
+  scanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false});
+  video.srcObject=scanStream;await video.play();
+  $("captureSerial").disabled=false;
+  message.textContent="الكاميرا جاهزة. قرّب السيريال المكتوب وخليه واضحًا، ثم اضغط تصوير وقراءة السيريال.";
+ }catch(err){console.error("Camera error:",err);stopCamera();message.textContent=err?.name==="NotAllowedError"?"إذن الكاميرا مرفوض. افتح إعدادات الموقع واسمح بالكاميرا.":err?.name==="NotFoundError"?"لم يتم العثور على كاميرا في الجهاز.":"تعذر تشغيل الكاميرا. افتح الموقع من HTTPS في Chrome واسمح بالكاميرا."}
+}
+async function captureSerial(){
+ const video=$("scanVideo"),message=$("scanMessage"),button=$("captureSerial");
+ if(!scanStream||!video.videoWidth){message.textContent="ابدأ الكاميرا أولًا.";return}
+ button.disabled=true;message.textContent="جارٍ قراءة النص من الصورة… قد يستغرق ذلك قليلًا.";
+ try{
+  const canvas=document.createElement("canvas");canvas.width=video.videoWidth*2;canvas.height=video.videoHeight*2;
+  const ctx=canvas.getContext("2d");ctx.imageSmoothingEnabled=true;ctx.drawImage(video,0,0,canvas.width,canvas.height);
+  // Tesseract OCR reads ordinary printed letters/numbers, not only barcodes.
+  const { recognize } = await import("https://esm.sh/tesseract.js@5.1.1");
+  const result=await recognize(canvas.toDataURL("image/jpeg",0.95),"eng",{logger:m=>{if(m.status==="recognizing text")message.textContent=`جارٍ قراءة السيريال… ${Math.round((m.progress||0)*100)}٪`}});
+  const raw=(result?.data?.text||"").replace(/\s+/g," ").trim();
+  if(!raw){message.textContent="لم أستطع قراءة السيريال. قرّب الكاميرا، زوّد الإضاءة، وجرب مرة أخرى.";button.disabled=false;return}
+  // Keep likely serial characters and separators; user can verify/edit before saving.
+  const candidate=raw.split(/\n/).map(x=>x.trim()).filter(Boolean).sort((a,b)=>b.length-a.length)[0]||raw;
+  acceptScannedValue(candidate);
+ }catch(err){console.error("OCR error:",err);message.textContent="تعذر تحميل قارئ النصوص. تأكد من الإنترنت ثم اضغط قراءة مرة أخرى.";button.disabled=false}
 }
 function acceptScannedValue(value){
  const input=document.querySelector('#form input[name="serial"]');
@@ -72,9 +71,9 @@ function modal(title,html,m){mode=m;$("modalTitle").textContent=title;$("fields"
 function close(){$("modal").classList.remove("show");$("form").reset()}
 $("close").onclick=$("cancel").onclick=close;
 $("scanClose").onclick=()=>{stopCamera();$("scanBackdrop").classList.remove("show")};
-$("startScan").onclick=startCamera;$("stopScan").onclick=()=>{stopCamera();$("scanMessage").textContent="تم إيقاف الكاميرا."};
+$("startScan").onclick=startCamera;$("captureSerial").onclick=captureSerial;$("stopScan").onclick=()=>{stopCamera();$("scanMessage").textContent="تم إيقاف الكاميرا."};
 $("scanBackdrop").addEventListener("click",e=>{if(e.target===$("scanBackdrop")){stopCamera();$("scanBackdrop").classList.remove("show")}});
-$("addMachine").onclick=()=>modal("إضافة ماكينة",field("كود الماكينة","code","text","مثال: M-001")+field("اسم الماكينة","name","text","اسم الماكينة")+`<div class="field"><label>السيريال نمبر</label><div style="display:flex;gap:7px"><input name="serial" placeholder="اكتب السيريال أو صوّر الباركود"><button type="button" id="scanSerial" class="btn">📷 تصوير</button></div><small style="color:#8a95a8">التصوير يقرأ الباركود أو QR إن كان السيريال مطبوعًا عليه.</small></div>`+field("القسم","department","text","قسم الخياطة",false)+`<div class="field"><label>الحالة</label><select name="status"><option>تعمل</option><option>متوقفة</option></select></div>`+field("ملاحظات","notes","textarea","",false),"machine");
+$("addMachine").onclick=()=>modal("إضافة ماكينة",field("كود الماكينة","code","text","مثال: M-001")+field("اسم الماكينة","name","text","اسم الماكينة")+`<div class="field"><label>السيريال نمبر</label><div style="display:flex;gap:7px"><input name="serial" placeholder="اكتب السيريال أو صوّره بالكاميرا"><button type="button" id="scanSerial" class="btn">📷 تصوير</button></div><small style="color:#8a95a8">صوّر السيريال المكتوب، وسيحاول النظام قراءة الحروف والأرقام تلقائيًا.</small></div>`+field("القسم","department","text","قسم الخياطة",false)+`<div class="field"><label>الحالة</label><select name="status"><option>تعمل</option><option>متوقفة</option></select></div>`+field("ملاحظات","notes","textarea","",false),"machine");
 $("addReport").onclick=()=>{if(!state.machines.length){msg("أضف ماكينة أولًا");view("machines");return}modal("تسجيل بلاغ عطل",`<div class="field"><label>الماكينة</label><select name="machineId">${state.machines.map(m=>`<option value="${m.id}">${esc(m.code)} — ${esc(m.name)}</option>`).join("")}</select></div>`+field("وصف العطل","description","textarea","اشرح العطل")+field("اسم الفني","technician","text","اسم الفني",false)+`<div class="field"><label>الأولوية</label><select name="priority"><option>عادي</option><option>عاجل</option><option>حرج</option></select></div>`,"report")};
 $("form").onsubmit=e=>{e.preventDefault();let d=Object.fromEntries(new FormData(e.currentTarget));if(mode==="machine"){if(state.machines.some(m=>m.code.toLowerCase()===d.code.trim().toLowerCase())){msg("كود الماكينة مستخدم بالفعل");return}state.machines.push({id:crypto.randomUUID(),...d});msg("تمت إضافة الماكينة")}else{let m=state.machines.find(x=>x.id===d.machineId);state.reports.push({id:crypto.randomUUID(),machineId:m.id,machineName:m.name,machineCode:m.code,description:d.description,technician:d.technician,priority:d.priority,status:"open",createdAt:time()});m.status="متوقفة";msg("تم تسجيل البلاغ");playAlert();if("Notification"in window&&Notification.permission==="granted")new Notification("بلاغ عطل جديد",{body:m.name+" — "+d.description})}save();close()};
 document.addEventListener("click",e=>{let t=e.target;if(t.id==="scanSerial"){$("scanBackdrop").classList.add("show");$("scanMessage").textContent="اضغط بدء الكاميرا واسمح باستخدام الكاميرا."}if(t.dataset.delMachine){if(state.reports.some(r=>r.machineId===t.dataset.delMachine)){msg("لا يمكن حذف ماكينة مرتبطة ببلاغ");return}if(confirm("حذف الماكينة؟")){state.machines=state.machines.filter(m=>m.id!==t.dataset.delMachine);save()}}if(t.dataset.delReport&&confirm("حذف البلاغ؟")){state.reports=state.reports.filter(r=>r.id!==t.dataset.delReport);save()}if(t.dataset.start){let r=state.reports.find(x=>x.id===t.dataset.start);r.status="working";r.startedAt=time();save();msg("تم تسجيل استلام البلاغ")}if(t.dataset.fix){let r=state.reports.find(x=>x.id===t.dataset.fix);if(confirm("تأكيد إنهاء الإصلاح؟")){r.status="fixed";state.maintenance.push({date:time(),machineName:r.machineName,machineCode:r.machineCode,description:r.description,technician:r.technician});let m=state.machines.find(x=>x.id===r.machineId);if(m&&!state.reports.some(x=>x.machineId===m.id&&x.id!==r.id&&x.status!=="fixed"))m.status="تعمل";save();msg("تم تسجيل الإصلاح في سجل الصيانة")}}});
