@@ -25,31 +25,54 @@ async function startCamera(){
   scanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false});
   video.srcObject=scanStream;await video.play();
   $("captureSerial").disabled=false;
-  message.textContent="الكاميرا جاهزة. قرّب السيريال المكتوب وخليه واضحًا، ثم اضغط تصوير وقراءة السيريال.";
+  message.textContent="الكاميرا جاهزة. خلّي سطر السيريال وحده في منتصف الصورة، وقرّب الكاميرا بدون اهتزاز، ثم اضغط تصوير وقراءة السيريال.";
  }catch(err){console.error("Camera error:",err);stopCamera();message.textContent=err?.name==="NotAllowedError"?"إذن الكاميرا مرفوض. افتح إعدادات الموقع واسمح بالكاميرا.":err?.name==="NotFoundError"?"لم يتم العثور على كاميرا في الجهاز.":"تعذر تشغيل الكاميرا. افتح الموقع من HTTPS في Chrome واسمح بالكاميرا."}
 }
 async function captureSerial(){
  const video=$("scanVideo"),message=$("scanMessage"),button=$("captureSerial");
  if(!scanStream||!video.videoWidth){message.textContent="ابدأ الكاميرا أولًا وانتظر ظهور الصورة.";return}
- button.disabled=true;message.textContent="جارٍ تجهيز قارئ النصوص…";
+ button.disabled=true;message.textContent="جارٍ تجهيز الصورة لقراءة أدق…";
  try{
-  if(!window.Tesseract){throw new Error("Tesseract library did not load")}
+  if(!window.Tesseract)throw new Error("Tesseract library did not load");
+  const sw=video.videoWidth,sh=video.videoHeight;
+  // Focus on the center of the frame to avoid reading nearby labels and machine text.
+  const cropW=Math.floor(sw*.78),cropH=Math.floor(sh*.38);
+  const cropX=Math.floor((sw-cropW)/2),cropY=Math.floor((sh-cropH)/2);
   const canvas=document.createElement("canvas");
-  // Capture the central region at higher resolution to improve serial-number recognition.
-  const sw=video.videoWidth, sh=video.videoHeight;
-  const cropX=Math.floor(sw*0.05), cropY=Math.floor(sh*0.20), cropW=Math.floor(sw*0.90), cropH=Math.floor(sh*0.60);
-  canvas.width=Math.min(cropW*2,2400);canvas.height=Math.min(cropH*2,1400);
-  const ctx=canvas.getContext("2d");ctx.filter="contrast(1.25) grayscale(1)";
+  canvas.width=Math.min(cropW*3,3000);canvas.height=Math.min(cropH*3,1600);
+  const ctx=canvas.getContext("2d",{willReadFrequently:true});
+  ctx.filter="grayscale(1) contrast(1.7) brightness(1.08)";
   ctx.drawImage(video,cropX,cropY,cropW,cropH,0,0,canvas.width,canvas.height);
-  message.textContent="جارٍ قراءة الحروف والأرقام…";
+  // Apply a mild black/white threshold to suppress background texture.
+  const frame=ctx.getImageData(0,0,canvas.width,canvas.height),px=frame.data;
+  for(let i=0;i<px.length;i+=4){const y=.299*px[i]+.587*px[i+1]+.114*px[i+2];const v=y>145?255:0;px[i]=px[i+1]=px[i+2]=v}
+  ctx.putImageData(frame,0,0);
+  message.textContent="جارٍ قراءة السيريال فقط…";
   const result=await window.Tesseract.recognize(canvas,"eng",{
-   logger:m=>{if(m.status==="recognizing text")message.textContent=`جارٍ قراءة السيريال… ${Math.round((m.progress||0)*100)}٪`}
+   logger:m=>{if(m.status==="recognizing text")message.textContent=`جارٍ تحسين القراءة… ${Math.round((m.progress||0)*100)}٪`},
+   tessedit_pageseg_mode:7,
+   tessedit_char_whitelist:"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_/.",
+   preserve_interword_spaces:"0"
   });
-  const raw=(result?.data?.text||"").replace(/[^A-Za-z0-9._\/-]+/g," ").trim();
-  const candidates=raw.split(/\s+/).filter(x=>x.length>=3).sort((a,b)=>b.length-a.length);
-  if(!candidates.length){message.textContent="لم أستطع قراءة الرقم. نظّف العدسة، قرّب السيريال، وثبّت الكاميرا ثم أعد المحاولة.";button.disabled=false;return}
-  acceptScannedValue(candidates[0]);
- }catch(err){console.error("OCR error:",err);message.textContent="قارئ النصوص لم يحمّل. تأكد من الإنترنت وافتح الموقع من HTTPS ثم أعد المحاولة.";button.disabled=false}
+  const clean=s=>String(s||"").replace(/[^A-Za-z0-9._/-]/g,"").replace(/^[._/-]+|[._/-]+$/g,"");
+  const lines=(result?.data?.lines||[]).map(line=>({text:line.text||"",confidence:Number(line.confidence)||0}));
+  const rawLines=lines.length?lines.map(x=>x.text):(result?.data?.text||"").split(/\n/);
+  const skip=/^(serial|s\/n|sn|no|number|model|machine|type|made|in|china)$/i;
+  let candidates=[];
+  for(const line of rawLines){
+   const tokens=String(line).split(/\s+/).map(clean).filter(x=>x.length>=4&&!skip.test(x));
+   // Prefer a single serial-like token; ignore short label fragments.
+   candidates.push(...tokens);
+  }
+  candidates=[...new Set(candidates)].sort((a,b)=>{
+   const score=x=>(/[A-Za-z]/.test(x)?2:0)+(/[0-9]/.test(x)?2:0)+Math.min(x.length,20)/20;
+   return score(b)-score(a)||b.length-a.length;
+  });
+  if(!candidates.length){message.textContent="مش قادر أميّز السيريال من الصورة. قرّب الكاميرا على السطر نفسه وخلي الرقم في منتصف الصورة، ثم أعد المحاولة.";button.disabled=false;return}
+  const best=candidates[0];
+  acceptScannedValue(best);
+  message.textContent="القراءة المقترحة: "+best+" — راجعها وعدّلها لو فيها أي اختلاف قبل حفظ الماكينة.";
+ }catch(err){console.error("OCR error:",err);message.textContent="تعذرت القراءة. تأكد من الإنترنت ووضوح السيريال ثم أعد المحاولة.";button.disabled=false}
 }
 function acceptScannedValue(value){
  const input=document.querySelector('#form input[name="serial"]');
