@@ -31,47 +31,58 @@ async function startCamera(){
 async function captureSerial(){
  const video=$("scanVideo"),message=$("scanMessage"),button=$("captureSerial");
  if(!scanStream||!video.videoWidth){message.textContent="ابدأ الكاميرا أولًا وانتظر ظهور الصورة.";return}
- button.disabled=true;message.textContent="جارٍ تجهيز الصورة لقراءة أدق…";
+ button.disabled=true;message.textContent="جارٍ تحسين الصورة وتجربة أكثر من طريقة قراءة…";
  try{
   if(!window.Tesseract)throw new Error("Tesseract library did not load");
   const sw=video.videoWidth,sh=video.videoHeight;
-  // Focus on the center of the frame to avoid reading nearby labels and machine text.
-  const cropW=Math.floor(sw*.78),cropH=Math.floor(sh*.38);
+  // A tighter center crop reduces unrelated machine labels/background text.
+  const cropW=Math.floor(sw*.62),cropH=Math.floor(sh*.22);
   const cropX=Math.floor((sw-cropW)/2),cropY=Math.floor((sh-cropH)/2);
-  const canvas=document.createElement("canvas");
-  canvas.width=Math.min(cropW*3,3000);canvas.height=Math.min(cropH*3,1600);
-  const ctx=canvas.getContext("2d",{willReadFrequently:true});
-  ctx.filter="grayscale(1) contrast(1.7) brightness(1.08)";
-  ctx.drawImage(video,cropX,cropY,cropW,cropH,0,0,canvas.width,canvas.height);
-  // Apply a mild black/white threshold to suppress background texture.
-  const frame=ctx.getImageData(0,0,canvas.width,canvas.height),px=frame.data;
-  for(let i=0;i<px.length;i+=4){const y=.299*px[i]+.587*px[i+1]+.114*px[i+2];const v=y>145?255:0;px[i]=px[i+1]=px[i+2]=v}
-  ctx.putImageData(frame,0,0);
-  message.textContent="جارٍ قراءة السيريال فقط…";
-  const result=await window.Tesseract.recognize(canvas,"eng",{
-   logger:m=>{if(m.status==="recognizing text")message.textContent=`جارٍ تحسين القراءة… ${Math.round((m.progress||0)*100)}٪`},
-   tessedit_pageseg_mode:7,
-   tessedit_char_whitelist:"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_/.",
-   preserve_interword_spaces:"0"
-  });
-  const clean=s=>String(s||"").replace(/[^A-Za-z0-9._/-]/g,"").replace(/^[._/-]+|[._/-]+$/g,"");
-  const lines=(result?.data?.lines||[]).map(line=>({text:line.text||"",confidence:Number(line.confidence)||0}));
-  const rawLines=lines.length?lines.map(x=>x.text):(result?.data?.text||"").split(/\n/);
-  const skip=/^(serial|s\/n|sn|no|number|model|machine|type|made|in|china)$/i;
-  let candidates=[];
-  for(const line of rawLines){
-   const tokens=String(line).split(/\s+/).map(clean).filter(x=>x.length>=4&&!skip.test(x));
-   // Prefer a single serial-like token; ignore short label fragments.
-   candidates.push(...tokens);
+  const base=document.createElement("canvas");base.width=Math.min(cropW*4,3200);base.height=Math.min(cropH*4,1200);
+  const bctx=base.getContext("2d",{willReadFrequently:true});
+  bctx.filter="grayscale(1) contrast(2) brightness(1.12)";
+  bctx.drawImage(video,cropX,cropY,cropW,cropH,0,0,base.width,base.height);
+  const image=bctx.getImageData(0,0,base.width,base.height),original=image.data;
+  const gray=new Uint8ClampedArray(original.length);
+  for(let i=0;i<original.length;i+=4){const y=.299*original[i]+.587*original[i+1]+.114*original[i+2];gray[i]=gray[i+1]=gray[i+2]=y;gray[i+3]=255}
+  const variants=[];
+  // Try grayscale, high contrast, and adaptive-ish threshold variants.
+  const g=document.createElement("canvas");g.width=base.width;g.height=base.height;g.getContext("2d").putImageData(new ImageData(gray,base.width,base.height),0,0);variants.push(g);
+  for(const threshold of [125,165]){
+   const c=document.createElement("canvas");c.width=base.width;c.height=base.height;const cx=c.getContext("2d");const d=new ImageData(new Uint8ClampedArray(gray),base.width,base.height);
+   for(let i=0;i<d.data.length;i+=4){const v=d.data[i]>threshold?255:0;d.data[i]=d.data[i+1]=d.data[i+2]=v;d.data[i+3]=255}cx.putImageData(d,0,0);variants.push(c);
   }
-  candidates=[...new Set(candidates)].sort((a,b)=>{
-   const score=x=>(/[A-Za-z]/.test(x)?2:0)+(/[0-9]/.test(x)?2:0)+Math.min(x.length,20)/20;
-   return score(b)-score(a)||b.length-a.length;
-  });
-  if(!candidates.length){message.textContent="مش قادر أميّز السيريال من الصورة. قرّب الكاميرا على السطر نفسه وخلي الرقم في منتصف الصورة، ثم أعد المحاولة.";button.disabled=false;return}
-  const best=candidates[0];
-  acceptScannedValue(best);
-  message.textContent="القراءة المقترحة: "+best+" — راجعها وعدّلها لو فيها أي اختلاف قبل حفظ الماكينة.";
+  const clean=s=>String(s||"").toUpperCase().replace(/[^A-Z0-9]/g,"");
+  const results=[];
+  for(let i=0;i<variants.length;i++){
+   message.textContent=`جارٍ تحليل الصورة (${i+1} من ${variants.length})…`;
+   const r=await window.Tesseract.recognize(variants[i],"eng",{
+    logger:m=>{if(m.status==="recognizing text")message.textContent=`جارٍ تحسين القراءة… ${Math.round((m.progress||0)*100)}٪`},
+    tessedit_pageseg_mode:7,
+    tessedit_char_whitelist:"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+    preserve_interword_spaces:"0"
+   });
+   const txt=String(r?.data?.text||"").toUpperCase();
+   const conf=Number(r?.data?.confidence)||0;
+   // This machine serial example follows 6 digits + 2 letters + 4 digits.
+   const compact=clean(txt);
+   const matches=compact.match(/\d{6}[A-Z]{2}\d{4}/g)||[];
+   matches.forEach(value=>results.push({value,confidence:conf,exact:true}));
+   if(compact.length>=8)results.push({value:compact,confidence:conf,exact:false});
+  }
+  const unique=new Map();
+  for(const r of results){const old=unique.get(r.value);if(!old||r.confidence>old.confidence||r.exact&&!old.exact)unique.set(r.value,r)}
+  const ranked=[...unique.values()].sort((a,b)=>(Number(b.exact)-Number(a.exact))||b.confidence-a.confidence||Math.abs(a.value.length-12)-Math.abs(b.value.length-12));
+  const best=ranked[0];
+  if(!best){message.textContent="لم أتمكن من استخراج سيريال واضح. قرّب الكاميرا على السطر نفسه وخليه في منتصف الصورة، مع إبعاد أي كتابة ثانية، ثم جرّب مرة أخرى.";button.disabled=false;return}
+  if(best.exact){
+   acceptScannedValue(best.value);
+   msg("قراءة السيريال المقترحة: "+best.value);
+   return;
+  }
+  // Never auto-fill random surrounding text when the expected serial pattern was not found.
+  message.textContent=`القراءة غير مؤكدة: ${best.value}\nلم يتم إدخالها تلقائيًا حتى لا نسجل رقمًا خاطئًا. وجّه السيريال وحده إلى منتصف الصورة وجرّب مرة أخرى، أو اكتب الرقم يدويًا.`;
+  button.disabled=false;
  }catch(err){console.error("OCR error:",err);message.textContent="تعذرت القراءة. تأكد من الإنترنت ووضوح السيريال ثم أعد المحاولة.";button.disabled=false}
 }
 function acceptScannedValue(value){
