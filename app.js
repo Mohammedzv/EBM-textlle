@@ -6,23 +6,50 @@ const blank=()=>({machines:[],reports:[],maintenance:[]});
 let state;try{state={...blank(),...JSON.parse(localStorage.getItem(KEY)||"{}")}}catch{state=blank()}
 let save=()=>{localStorage.setItem(KEY,JSON.stringify(state));render()}, mode="", timer;
 let audioCtx=null, scanStream=null, scanLoop=false, knownReportIds=new Set(state.reports.map(r=>r.id));
-function playAlert(){
+async function playAlert(){
  try{
-  const Ctx=window.AudioContext||window.webkitAudioContext;if(!Ctx)return;
-  audioCtx=audioCtx||new Ctx();if(audioCtx.state==="suspended")audioCtx.resume();
-  [880,660,880].forEach((hz,i)=>{const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type="sine";o.frequency.value=hz;g.gain.setValueAtTime(.0001,audioCtx.currentTime+i*.18);g.gain.exponentialRampToValueAtTime(.18,audioCtx.currentTime+i*.18+.025);g.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+i*.18+.15);o.connect(g);g.connect(audioCtx.destination);o.start(audioCtx.currentTime+i*.18);o.stop(audioCtx.currentTime+i*.18+.17)});
- }catch(err){console.warn("Audio alert unavailable",err)}
+  const Ctx=window.AudioContext||window.webkitAudioContext;
+  if(!Ctx){msg("المتصفح لا يدعم تشغيل الصوت");return}
+  audioCtx=audioCtx||new Ctx();
+  if(audioCtx.state!=="running") await audioCtx.resume();
+  const now=audioCtx.currentTime;
+  [880,660,880].forEach((hz,i)=>{const o=audioCtx.createOscillator(),g=audioCtx.createGain(),t=now+i*.2;o.type="sine";o.frequency.value=hz;g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.22,t+.025);g.gain.exponentialRampToValueAtTime(.001,t+.17);o.connect(g);g.connect(audioCtx.destination);o.start(t);o.stop(t+.18)});
+ }catch(err){console.warn("Audio alert unavailable",err);msg("الصوت محجوب من المتصفح؛ اضغط زر التنبيهات مرة ثم جرّب")}
 }
 function stopCamera(){scanLoop=false;if(scanStream){scanStream.getTracks().forEach(t=>t.stop());scanStream=null}const v=$("scanVideo");if(v)v.srcObject=null}
 async function startCamera(){
- if(!("BarcodeDetector"in window)){ $("scanMessage").textContent="المتصفح لا يدعم قراءة الباركود مباشرة. جرّب Chrome محدثًا، أو اكتب السيريال يدويًا.";return}
+ const message=$("scanMessage"), video=$("scanVideo");
+ if(!navigator.mediaDevices?.getUserMedia){message.textContent="الكاميرا لا تعمل من معاينة الملفات. افتح الموقع من رابط HTTPS مثل GitHub Pages، ثم اسمح بالكاميرا.";return}
  try{
-  const supported=await BarcodeDetector.getSupportedFormats();const formats=supported.filter(x=>["qr_code","code_128","code_39","ean_13","ean_8","upc_a","upc_e","itf","codabar"].includes(x));
-  const detector=new BarcodeDetector({formats:formats.length?formats:["qr_code"]});
-  scanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false});
-  const video=$("scanVideo");video.srcObject=scanStream;await video.play();scanLoop=true;$("scanMessage").textContent="وجّه الكاميرا إلى الباركود وثبّتها لحظة.";
-  const tick=async()=>{if(!scanLoop)return;try{const hits=await detector.detect(video);if(hits.length&&hits[0].rawValue){const input=document.querySelector('#form input[name="serial"]');if(input){input.value=hits[0].rawValue;input.dispatchEvent(new Event("input",{bubbles:true}));}$("scanMessage").textContent="تمت قراءة السيريال: "+hits[0].rawValue;stopCamera();$("scanBackdrop").classList.remove("show");msg("تم التقاط السيريال من الكاميرا");return}}catch(e){}requestAnimationFrame(tick)};requestAnimationFrame(tick);
- }catch(err){$("scanMessage").textContent="لم نتمكن من فتح الكاميرا. تأكد من السماح بالكاميرا وفتح الموقع عبر HTTPS."}
+  // Modern native detector when available.
+  if("BarcodeDetector" in window){
+   let supported=[];try{supported=await BarcodeDetector.getSupportedFormats()}catch{}
+   const wanted=["qr_code","code_128","code_39","ean_13","ean_8","upc_a","upc_e","itf","codabar"];
+   const formats=wanted.filter(x=>supported.includes(x));
+   if(formats.length){
+    const detector=new BarcodeDetector({formats});
+    scanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false});
+    video.srcObject=scanStream;await video.play();scanLoop=true;message.textContent="وجّه الكاميرا إلى الباركود أو QR وثبّتها لحظة.";
+    const tick=async()=>{if(!scanLoop)return;try{const hits=await detector.detect(video);if(hits.length&&hits[0].rawValue){acceptScannedValue(hits[0].rawValue);return}}catch(err){console.warn(err)}if(scanLoop)requestAnimationFrame(tick)};requestAnimationFrame(tick);return;
+   }
+  }
+  // Fallback decoder for browsers without BarcodeDetector (loaded online).
+  message.textContent="جارٍ تجهيز قارئ الباركود…";
+  const ZXing=await import("https://esm.sh/@zxing/browser@0.1.5");
+  const Reader=ZXing.BrowserMultiFormatReader;
+  if(!Reader)throw new Error("تعذر تحميل قارئ الباركود");
+  scanLoop=true;message.textContent="اسمح بالكاميرا ثم وجّهها إلى الباركود أو QR.";
+  const reader=new Reader();
+  await reader.decodeFromVideoDevice(undefined,video,(result,err,controls)=>{
+   if(!scanLoop){controls?.stop();return}
+   if(result){acceptScannedValue(result.getText());controls?.stop()}
+  });
+ }catch(err){console.error("Camera error:",err);stopCamera();message.textContent=err?.name==="NotAllowedError"?"تم رفض إذن الكاميرا. افتح إعدادات الموقع واسمح بالكاميرا ثم أعد المحاولة.":err?.name==="NotFoundError"?"لم يتم العثور على كاميرا في الجهاز.":"تعذر تشغيل الكاميرا. افتح الموقع من HTTPS في Chrome، واسمح بالكاميرا، وتأكد من اتصال الإنترنت."}
+}
+function acceptScannedValue(value){
+ const input=document.querySelector('#form input[name="serial"]');
+ if(input){input.value=value;input.dispatchEvent(new Event("input",{bubbles:true}));}
+ $("scanMessage").textContent="تمت قراءة السيريال: "+value;stopCamera();$("scanBackdrop").classList.remove("show");msg("تم التقاط السيريال من الكاميرا");
 }
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const time=()=>new Date().toLocaleString("ar-EG",{dateStyle:"short",timeStyle:"short"});
@@ -52,7 +79,7 @@ $("addReport").onclick=()=>{if(!state.machines.length){msg("أضف ماكينة 
 $("form").onsubmit=e=>{e.preventDefault();let d=Object.fromEntries(new FormData(e.currentTarget));if(mode==="machine"){if(state.machines.some(m=>m.code.toLowerCase()===d.code.trim().toLowerCase())){msg("كود الماكينة مستخدم بالفعل");return}state.machines.push({id:crypto.randomUUID(),...d});msg("تمت إضافة الماكينة")}else{let m=state.machines.find(x=>x.id===d.machineId);state.reports.push({id:crypto.randomUUID(),machineId:m.id,machineName:m.name,machineCode:m.code,description:d.description,technician:d.technician,priority:d.priority,status:"open",createdAt:time()});m.status="متوقفة";msg("تم تسجيل البلاغ");playAlert();if("Notification"in window&&Notification.permission==="granted")new Notification("بلاغ عطل جديد",{body:m.name+" — "+d.description})}save();close()};
 document.addEventListener("click",e=>{let t=e.target;if(t.id==="scanSerial"){$("scanBackdrop").classList.add("show");$("scanMessage").textContent="اضغط بدء الكاميرا واسمح باستخدام الكاميرا."}if(t.dataset.delMachine){if(state.reports.some(r=>r.machineId===t.dataset.delMachine)){msg("لا يمكن حذف ماكينة مرتبطة ببلاغ");return}if(confirm("حذف الماكينة؟")){state.machines=state.machines.filter(m=>m.id!==t.dataset.delMachine);save()}}if(t.dataset.delReport&&confirm("حذف البلاغ؟")){state.reports=state.reports.filter(r=>r.id!==t.dataset.delReport);save()}if(t.dataset.start){let r=state.reports.find(x=>x.id===t.dataset.start);r.status="working";r.startedAt=time();save();msg("تم تسجيل استلام البلاغ")}if(t.dataset.fix){let r=state.reports.find(x=>x.id===t.dataset.fix);if(confirm("تأكيد إنهاء الإصلاح؟")){r.status="fixed";state.maintenance.push({date:time(),machineName:r.machineName,machineCode:r.machineCode,description:r.description,technician:r.technician});let m=state.machines.find(x=>x.id===r.machineId);if(m&&!state.reports.some(x=>x.machineId===m.id&&x.id!==r.id&&x.status!=="fixed"))m.status="تعمل";save();msg("تم تسجيل الإصلاح في سجل الصيانة")}}});
 $("search").oninput=render;$("filter").onchange=render;
-$("alerts").onclick=async()=>{playAlert();if(!("Notification"in window)){msg("تم تشغيل الصوت التجريبي؛ المتصفح لا يدعم الإشعارات");return}let p=await Notification.requestPermission();msg(p==="granted"?"تم تفعيل التنبيهات والصوت التجريبي":"الصوت يعمل داخل الموقع؛ لم يتم السماح بإشعارات المتصفح")};
+$("alerts").onclick=async()=>{await playAlert();if(!("Notification"in window)){msg("جرّب الصوت الآن؛ المتصفح لا يدعم الإشعارات");return}let p=await Notification.requestPermission();msg(p==="granted"?"تم السماح بإشعارات المتصفح":"اسمح بالإشعارات من إعدادات الموقع إذا أردتها")};
 let dbRef=null;
 if(firebaseConfig.databaseURL&&firebaseConfig.databaseURL!=="PASTE_REALTIME_DATABASE_URL_HERE"){try{initializeApp(firebaseConfig);const db=getDatabase();dbRef=ref(db,"ebmSystem/state");onValue(dbRef,s=>{let d=s.val();if(d){const incoming=Array.isArray(d.reports)?d.reports:[];const newOnes=incoming.filter(r=>!knownReportIds.has(r.id));newOnes.forEach(r=>{if(knownReportIds.size)playAlert();knownReportIds.add(r.id)});state={...blank(),...d};localStorage.setItem(KEY,JSON.stringify(state));render()}$("connection").textContent="● Firebase متصل";$("connection").style.color="#19a974"});const localSave=save;save=()=>{localStorage.setItem(KEY,JSON.stringify(state));render();set(dbRef,state).catch(e=>{console.error(e);msg("تعذر الحفظ في Firebase؛ راجع قواعد البيانات")})}}catch(e){console.error(e);$("connection").textContent="● تعذر الاتصال بـ Firebase"}}
 render();
