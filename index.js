@@ -8,7 +8,7 @@ initializeApp();
 
 // Sends a push to every browser/device that has enabled notifications.
 exports.notifyOnNewIncident = onValueWritten(
-  { ref: '/ibmSystem/state/incidents/{incidentKey}', region: 'us-central1' },
+  { ref: '/ebmSystem/state/incidents/{incidentKey}', region: 'us-central1' },
   async (event) => {
     const before = event.data.before.exists() ? event.data.before.val() : null;
     const after = event.data.after.exists() ? event.data.after.val() : null;
@@ -16,7 +16,7 @@ exports.notifyOnNewIncident = onValueWritten(
     if (!after || after.status !== 'reported' || (before && before.status === 'reported')) return;
 
     const db = getDatabase();
-    const snap = await db.ref('ibmSystem/pushTokens').get();
+    const snap = await db.ref('ebmSystem/pushTokens').get();
     if (!snap.exists()) {
       logger.info('No registered push devices yet.');
       return;
@@ -28,7 +28,7 @@ exports.notifyOnNewIncident = onValueWritten(
     });
     if (!tokens.length) return;
 
-    const machineSnap = await db.ref('ibmSystem/state/machines').get();
+    const machineSnap = await db.ref('ebmSystem/state/machines').get();
     const machines = machineSnap.val() || [];
     const machineList = Array.isArray(machines) ? machines : Object.values(machines);
     const machine = machineList.find(m => m && m.id === after.machineId);
@@ -47,7 +47,7 @@ exports.notifyOnNewIncident = onValueWritten(
       });
       result.responses.forEach((response, index) => {
         if (!response.success && ['messaging/registration-token-not-registered','messaging/invalid-registration-token'].includes(response.error?.code)) {
-          db.ref('ibmSystem/pushTokens/' + batch[index].key).remove().catch(() => {});
+          db.ref('ebmSystem/pushTokens/' + batch[index].key).remove().catch(() => {});
         }
       });
       logger.info(`Push batch: ${result.successCount} success, ${result.failureCount} failed.`);

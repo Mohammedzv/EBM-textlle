@@ -1,6 +1,6 @@
 {
   "rules": {
-    "ibmSystem": {
+    "ebmSystem": {
       ".read": true,
       ".write": true
     }

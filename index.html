@@ -100,19 +100,19 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/fireba
 import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
 import { getMessaging, getToken, onMessage, isSupported } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging.js";
 const firebaseConfig = {
-  apiKey: "AIzaSyDmJ4mrcgpWx0KeFsNalc0bFIT3bmOmF_c",
-  authDomain: "sstmy-627dc.firebaseapp.com",
-  databaseURL: "https://sstmy-627dc-default-rtdb.firebaseio.com",
-  projectId: "sstmy-627dc",
-  storageBucket: "sstmy-627dc.firebasestorage.app",
-  messagingSenderId: "711278472895",
-  appId: "1:711278472895:web:3f8ecd2eb8946bbbcae00a",
-  measurementId: "G-B38ZQ6N0GL"
+  apiKey: "AIzaSyA6GHkYt-BpjqoA51CZrJb3TjWXS-ux1LE",
+  authDomain: "emtr-10091.firebaseapp.com",
+  databaseURL: "PASTE_REALTIME_DATABASE_URL_HERE",
+  projectId: "emtr-10091",
+  storageBucket: "emtr-10091.firebasestorage.app",
+  messagingSenderId: "640106990620",
+  appId: "1:640106990620:web:4f79728bf100dc898b63d9",
+  measurementId: "G-YS4KQT50PK"
 };
 const firebaseApp = initializeApp(firebaseConfig);
 const cloudDb = getDatabase(firebaseApp);
-const cloudStateRef = ref(cloudDb, "ibmSystem/state");
-const WEB_PUSH_PUBLIC_KEY = "BKk9voxGhZQ2OCr3o9N45Now4Tpwp1lDlfGeKrfYyMLtkDdila-2xx1cz_OKvO3XiorJcPQPR3dkLKko3LlzzV8";
+const cloudStateRef = ref(cloudDb, "ebmSystem/state");
+const WEB_PUSH_PUBLIC_KEY = "BISnwhTpR0ybZO0PLgKeMQaEtfy-BVucjrAK2KuK71a8XQuSBk27NoZOzcQMoAYPh-ai5CFPV27nIlX5VyxWIBc";
 async function enablePushNotifications(){
   if(!('serviceWorker' in navigator) || !('Notification' in window)) { alert('المتصفح لا يدعم إشعارات الخلفية. جرّب Chrome على Android.'); return; }
   try {
@@ -125,7 +125,7 @@ async function enablePushNotifications(){
     const token = await getToken(messaging, {vapidKey: WEB_PUSH_PUBLIC_KEY, serviceWorkerRegistration: registration});
     if(!token) throw new Error('لم يتم إنشاء رمز الإشعارات. أعد المحاولة وتأكد من إذن الإشعارات.');
     const tokenKey = token.replace(/[.#$\[\]\/]/g, '_');
-    await set(ref(cloudDb, 'ibmSystem/pushTokens/' + tokenKey), {token, updatedAt:new Date().toISOString(), userAgent:navigator.userAgent});
+    await set(ref(cloudDb, 'ebmSystem/pushTokens/' + tokenKey), {token, updatedAt:new Date().toISOString(), userAgent:navigator.userAgent});
     onMessage(messaging, payload => {
       const title = payload.notification?.title || 'EBM System';
       const body = payload.notification?.body || 'بلاغ صيانة جديد';
