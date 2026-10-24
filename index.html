@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EBM | نظام صيانة الماكينات</title>
+<style>
+:root{--navy:#101b35;--blue:#2563eb;--cyan:#06b6d4;--bg:#f3f6fb;--ink:#17233b;--muted:#73809a;--line:#e5eaf2;--white:#fff;--green:#16a34a;--red:#dc2626;--orange:#d97706}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Tahoma,Arial,sans-serif}
+.app{display:flex;min-height:100vh}.side{width:250px;background:linear-gradient(180deg,#101b35,#172b50);color:white;padding:24px 16px;flex-shrink:0}
+.brand{display:flex;align-items:center;gap:12px;padding:4px 8px 28px;border-bottom:1px solid #ffffff20}.logo{width:46px;height:46px;border-radius:14px;background:linear-gradient(135deg,#06b6d4,#2563eb);display:grid;place-items:center;font-weight:900;font-size:18px;box-shadow:0 8px 25px #06b6d444}.brand h1{font-size:20px;margin:0}.brand small{color:#aab9d5;display:block;margin-top:5px}
+.nav{margin-top:22px;display:grid;gap:8px}.nav button{border:0;color:#c9d5ea;background:transparent;text-align:right;padding:14px;border-radius:12px;font:inherit;cursor:pointer}.nav button.active,.nav button:hover{background:#ffffff16;color:white}.nav button span{display:inline-block;width:30px}
+.sidefoot{margin-top:35px;color:#9eacc7;font-size:12px;line-height:1.8;padding:10px}
+.main{flex:1;min-width:0;padding:28px}.top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:24px}.top h2{margin:0;font-size:25px}.top p{margin:8px 0 0;color:var(--muted);font-size:13px}.topactions{display:flex;gap:9px;flex-wrap:wrap}
+.btn{border:0;border-radius:10px;padding:11px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:.15s}.primary{background:var(--blue);color:white;box-shadow:0 5px 14px #2563eb25}.primary:hover{background:#1d4ed8}.soft{background:white;color:var(--ink);border:1px solid var(--line)}.danger{background:#fff1f2;color:var(--red);border:1px solid #fecdd3}.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:15px;margin-bottom:22px}.stat{background:white;border:1px solid var(--line);border-radius:16px;padding:19px;box-shadow:0 4px 16px #16284a06}.stat .label{font-size:12px;color:var(--muted)}.stat .num{font-size:28px;font-weight:800;margin-top:12px}.stat .icon{float:left;width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:#eff6ff;color:var(--blue);font-size:18px}.panel{background:white;border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:0 4px 16px #16284a06;margin-bottom:18px}.panelhead{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}.panelhead h3{margin:0;font-size:17px}.muted{color:var(--muted);font-size:12px}.search{width:min(300px,100%);padding:11px 13px;border:1px solid var(--line);border-radius:10px;font:inherit;outline:none}.search:focus,input:focus,select:focus,textarea:focus{border-color:#60a5fa;box-shadow:0 0 0 3px #dbeafe}
+.tablewrap{overflow:auto}table{border-collapse:collapse;width:100%;min-width:650px}th,td{text-align:right;padding:14px 12px;border-bottom:1px solid #edf0f5;font-size:13px}th{color:var(--muted);font-weight:700;background:#fafbfd}td strong{font-size:13px}.pill{display:inline-block;border-radius:20px;padding:6px 10px;font-size:11px;font-weight:700}.ok{background:#dcfce7;color:#166534}.repair{background:#ffedd5;color:#9a3412}.stop{background:#fee2e2;color:#991b1b}.actions{display:flex;gap:6px}.tiny{padding:7px 9px;font-size:11px}.empty{text-align:center;padding:38px;color:var(--muted)}.view{display:none}.view.active{display:block}.formgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.field{display:grid;gap:7px}.field label{font-size:12px;font-weight:700;color:#4b5872}.field input,.field select,.field textarea{width:100%;padding:12px;border:1px solid #dce3ee;border-radius:10px;font:inherit;font-size:13px;background:white;outline:none}.field textarea{min-height:88px;resize:vertical}.full{grid-column:1/-1}.formactions{display:flex;gap:8px;justify-content:flex-start;margin-top:18px}.notice{display:none;padding:12px 14px;border-radius:10px;font-size:13px;margin-bottom:14px}.notice.show{display:block}.notice.success{background:#dcfce7;color:#166534}.notice.error{background:#fee2e2;color:#991b1b}.footnote{color:var(--muted);font-size:12px;line-height:1.8}.modalback{position:fixed;inset:0;background:#0f172a99;display:none;align-items:center;justify-content:center;padding:18px;z-index:5}.modalback.open{display:flex}.modal{background:white;border-radius:18px;width:min(680px,100%);max-height:90vh;overflow:auto;padding:22px}.modalhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.modalhead h3{margin:0}.close{border:0;background:#f1f5f9;border-radius:9px;padding:8px 12px;cursor:pointer}.toast{position:fixed;bottom:20px;left:20px;background:#13213d;color:white;padding:14px 18px;border-radius:12px;box-shadow:0 8px 25px #0002;display:none;z-index:10;font-size:13px;max-width:90vw}.toast.show{display:block}
+@media(max-width:900px){.side{width:205px}.main{padding:20px}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:620px){.app{display:block}.side{width:auto;padding:14px}.brand{padding-bottom:14px}.nav{display:flex;overflow:auto;margin-top:12px}.nav button{white-space:nowrap;padding:10px 12px}.sidefoot{display:none}.main{padding:16px}.top{align-items:flex-start;flex-direction:column}.top h2{font-size:22px}.stats{gap:9px}.stat{padding:14px}.stat .num{font-size:24px}.formgrid{grid-template-columns:1fr}.full{grid-column:auto}.panel{padding:14px}.panelhead{align-items:flex-start;flex-direction:column}.search{width:100%}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="side">
+ <div class="brand"><div class="logo">EBM</div><div><h1>EBM System</h1><small>نظام صيانة الماكينات</small></div></div>
+ <nav class="nav">
+  <button class="active" data-view="dashboard"><span>▦</span> لوحة التحكم</button>
+  <button data-view="machines"><span>⚙</span> الماكينات</button>
+  <button data-view="maintenance"><span>🛠</span> سجلات الصيانة</button>
+  <button data-view="incidents"><span>🔔</span> بلاغات الأعطال <b id="openIncidentCount" style="background:#dc2626;border-radius:20px;padding:2px 7px;font-size:11px">0</b></button>
+ </nav>
+ <div class="sidefoot">إدارة الماكينات والصيانة<br>الإصدار 1.0 · EBM</div>
+</aside>
+<main class="main">
+ <div id="cloudStatus" class="notice show" style="margin:10px 0;background:#eef6ff;color:#1d4ed8">جارٍ الاتصال بقاعدة البيانات…</div>
+ <header class="top"><div><h2 id="pageTitle">لوحة التحكم</h2><p>تابع حالة الماكينات وسجلات الصيانة من مكان واحد.</p></div><div class="topactions"><button class="btn soft" id="backupBtn">⬇ نسخة احتياطية</button><button class="btn soft" id="enableNotifications">🔔 تفعيل الإشعارات والصوت</button><button class="btn danger" id="reportIncidentTop">＋ إبلاغ عن توقف</button><button class="btn primary" id="addMachineTop">＋ إضافة ماكينة</button></div></header>
+ <div id="notice" class="notice"></div>
+ <section class="view active" id="view-dashboard">
+  <div class="stats">
+   <div class="stat"><div class="icon">⚙</div><div class="label">إجمالي الماكينات</div><div class="num" id="totalMachines">0</div></div>
+   <div class="stat"><div class="icon">✓</div><div class="label">تعمل بشكل طبيعي</div><div class="num" id="workingMachines">0</div></div>
+   <div class="stat"><div class="icon">🛠</div><div class="label">تحتاج صيانة</div><div class="num" id="repairMachines">0</div></div>
+   <div class="stat"><div class="icon">▤</div><div class="label">سجلات الصيانة</div><div class="num" id="totalMaintenance">0</div></div>
+  </div>
+  <div class="panel"><div class="panelhead"><h3>آخر الماكينات المضافة</h3><button class="btn soft tiny" data-goto="machines">عرض الكل</button></div><div id="recentMachines"></div></div>
+  <div class="panel"><div class="panelhead"><h3>بلاغات أعطال مفتوحة</h3><button class="btn soft tiny" data-goto="incidents">عرض البلاغات</button></div><div id="dashboardIncidents"></div></div>
+  <div class="panel"><div class="panelhead"><h3>آخر أعمال الصيانة</h3><button class="btn soft tiny" data-goto="maintenance">عرض السجلات</button></div><div id="recentMaintenance"></div></div>
+  <p class="footnote">البيانات متزامنة عبر Firebase. إشعارات المتصفح والصوت يعملان عند فتح الموقع ومنح الإذن، وقد يحتاج الهاتف إلى إبقاء الصفحة مفتوحة.</p>
+ </section>
+ <section class="view" id="view-machines">
+  <div class="panel"><div class="panelhead"><h3>قائمة الماكينات</h3><input id="machineSearch" class="search" placeholder="ابحث بالرقم أو النوع أو المكان..."></div><div id="machinesTable"></div></div>
+ </section>
+ <section class="view" id="view-maintenance">
+  <div class="panel"><div class="panelhead"><h3>سجلات الصيانة</h3><button class="btn primary" id="addMaintenanceTop">＋ تسجيل صيانة</button></div><div id="maintenanceTable"></div></div>
+ </section>
+ <section class="view" id="view-incidents">
+  <div class="panel"><div class="panelhead"><h3>بلاغات الأعطال ومتابعة الفني</h3><button class="btn danger" id="reportIncidentList">＋ بلاغ توقف جديد</button></div><p class="muted">العامل يبلغ عن التوقف، والفني يضغط «وصلت للماكينة» عند الوصول، ثم «تم الإصلاح» عند الانتهاء.</p><div id="incidentsTable"></div></div>
+ </section>
+</main>
+</div>
+<div class="modalback" id="machineModal"><div class="modal">
+ <div class="modalhead"><h3 id="machineModalTitle">إضافة ماكينة جديدة</h3><button class="close" data-close="machineModal">إغلاق ✕</button></div>
+ <div id="machineError" class="notice"></div>
+ <form id="machineForm"><input type="hidden" id="machineId">
+ <div class="formgrid">
+  <div class="field"><label for="serial">رقم الماكينة *</label><input id="serial" required maxlength="80" placeholder="مثال: M-001"></div>
+  <div class="field"><label for="type">نوع الماكينة *</label><input id="type" required maxlength="100" placeholder="مثال: أوفر"></div>
+  <div class="field"><label for="brand">الماركة</label><input id="brand" maxlength="100" placeholder="اسم الشركة أو الموديل"></div>
+  <div class="field"><label for="location">المكان / القسم</label><input id="location" maxlength="100" placeholder="مثال: قسم الإنتاج"></div>
+  <div class="field"><label for="status">الحالة</label><select id="status"><option value="working">تعمل بشكل طبيعي</option><option value="repair">تحتاج صيانة</option><option value="stopped">متوقفة</option></select></div>
+  <div class="field"><label for="lastDate">تاريخ آخر صيانة</label><input id="lastDate" type="date"></div>
+  <div class="field full"><label for="machineNotes">ملاحظات</label><textarea id="machineNotes" placeholder="أي تفاصيل إضافية..."></textarea></div>
+ </div><div class="formactions"><button class="btn primary" id="saveMachineBtn" type="submit">حفظ الماكينة</button><button class="btn soft" type="button" data-close="machineModal">إلغاء</button></div>
+ </form>
+</div></div>
+<div class="modalback" id="maintenanceModal"><div class="modal">
+ <div class="modalhead"><h3>تسجيل عملية صيانة</h3><button class="close" data-close="maintenanceModal">إغلاق ✕</button></div>
+ <div id="maintenanceError" class="notice"></div>
+ <form id="maintenanceForm"><div class="formgrid">
+  <div class="field"><label for="maintenanceMachine">الماكينة *</label><select id="maintenanceMachine" required></select></div>
+  <div class="field"><label for="maintenanceDate">تاريخ الصيانة *</label><input id="maintenanceDate" type="date" required></div>
+  <div class="field"><label for="technician">اسم الفني</label><input id="technician" maxlength="100"></div>
+  <div class="field"><label for="maintenanceCost">التكلفة</label><input id="maintenanceCost" type="number" min="0" step="0.01" placeholder="0"></div>
+  <div class="field full"><label for="problem">العطل / المشكلة *</label><textarea id="problem" required></textarea></div>
+  <div class="field full"><label for="workDone">الإجراء الذي تم</label><textarea id="workDone"></textarea></div>
+  <div class="field"><label for="afterStatus">حالة الماكينة بعد الصيانة</label><select id="afterStatus"><option value="working">تعمل بشكل طبيعي</option><option value="repair">تحتاج صيانة</option><option value="stopped">متوقفة</option></select></div>
+ </div><div class="formactions"><button class="btn primary" id="saveMaintenanceBtn" type="submit">حفظ سجل الصيانة</button><button class="btn soft" type="button" data-close="maintenanceModal">إلغاء</button></div></form>
+</div></div>
+
+<div class="modalback" id="incidentModal"><div class="modal">
+ <div class="modalhead"><h3>إبلاغ عن توقف ماكينة</h3><button class="close" data-close="incidentModal">إغلاق ✕</button></div>
+ <div id="incidentError" class="notice"></div>
+ <form id="incidentForm"><div class="formgrid">
+  <div class="field"><label for="incidentMachine">الماكينة المتوقفة *</label><select id="incidentMachine" required></select></div>
+  <div class="field"><label for="incidentReporter">اسم العامل المُبلّغ</label><input id="incidentReporter" maxlength="100" placeholder="اسم العامل"></div>
+  <div class="field full"><label for="incidentProblem">وصف العطل *</label><textarea id="incidentProblem" required placeholder="اكتب وصف العطل أو المشكلة"></textarea></div>
+  <div class="field full"><label for="incidentPriority">الأولوية</label><select id="incidentPriority"><option value="normal">عادية</option><option value="urgent">عاجلة</option></select></div>
+ </div><div class="formactions"><button class="btn danger" id="saveIncidentBtn" type="submit">إرسال البلاغ 🔔</button><button class="btn soft" type="button" data-close="incidentModal">إلغاء</button></div></form>
+</div></div>
+<div class="toast" id="toast"></div>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
+import { getMessaging, getToken, onMessage, isSupported } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging.js";
+const firebaseConfig = {
+  apiKey: "AIzaSyDmJ4mrcgpWx0KeFsNalc0bFIT3bmOmF_c",
+  authDomain: "sstmy-627dc.firebaseapp.com",
+  databaseURL: "https://sstmy-627dc-default-rtdb.firebaseio.com",
+  projectId: "sstmy-627dc",
+  storageBucket: "sstmy-627dc.firebasestorage.app",
+  messagingSenderId: "711278472895",
+  appId: "1:711278472895:web:3f8ecd2eb8946bbbcae00a",
+  measurementId: "G-B38ZQ6N0GL"
+};
+const firebaseApp = initializeApp(firebaseConfig);
+const cloudDb = getDatabase(firebaseApp);
+const cloudStateRef = ref(cloudDb, "ibmSystem/state");
+const WEB_PUSH_PUBLIC_KEY = "BKk9voxGhZQ2OCr3o9N45Now4Tpwp1lDlfGeKrfYyMLtkDdila-2xx1cz_OKvO3XiorJcPQPR3dkLKko3LlzzV8";
+async function enablePushNotifications(){
+  if(!('serviceWorker' in navigator) || !('Notification' in window)) { alert('المتصفح لا يدعم إشعارات الخلفية. جرّب Chrome على Android.'); return; }
+  try {
+    const permission = await Notification.requestPermission();
+    if(permission !== 'granted'){ showToast('اسمح بالإشعارات من إعدادات المتصفح'); return; }
+    const supported = await isSupported();
+    if(!supported){ showToast('إشعارات الخلفية غير مدعومة في هذا المتصفح'); return; }
+    const registration = await navigator.serviceWorker.register('./firebase-messaging-sw.js');
+    const messaging = getMessaging(firebaseApp);
+    const token = await getToken(messaging, {vapidKey: WEB_PUSH_PUBLIC_KEY, serviceWorkerRegistration: registration});
+    if(!token) throw new Error('لم يتم إنشاء رمز الإشعارات. أعد المحاولة وتأكد من إذن الإشعارات.');
+    const tokenKey = token.replace(/[.#$\[\]\/]/g, '_');
+    await set(ref(cloudDb, 'ibmSystem/pushTokens/' + tokenKey), {token, updatedAt:new Date().toISOString(), userAgent:navigator.userAgent});
+    onMessage(messaging, payload => {
+      const title = payload.notification?.title || 'EBM System';
+      const body = payload.notification?.body || 'بلاغ صيانة جديد';
+      showToast(title + ': ' + body); playAlertSound();
+    });
+    playAlertSound(); showToast('تم تفعيل إشعارات الخلفية على هذا الجهاز ✓');
+  } catch(err) {
+    console.error(err);
+    showToast('تعذر تفعيل إشعارات الخلفية: ' + (err.message || err));
+  }
+}
+(function(){
+'use strict';
+const $=id=>document.getElementById(id);
+let state={machines:[],maintenance:[],incidents:[]};
+let cloudReady=false;
+let firstCloudSnapshot=true;
+let knownIncidentIds=new Set();
+const today=()=>new Date().toISOString().slice(0,10);
+const statusText={working:'تعمل بشكل طبيعي',repair:'تحتاج صيانة',stopped:'متوقفة'};
+const statusClass={working:'ok',repair:'repair',stopped:'stop'};
+function load(){onValue(cloudStateRef,(snapshot)=>{const status=$('cloudStatus');if(status){status.textContent='متصل بقاعدة البيانات ✓ — البلاغات والصيانة متزامنة';status.className='notice show success';}const data=snapshot.val()||{};state.machines=Array.isArray(data.machines)?data.machines:Object.values(data.machines||{});state.maintenance=Array.isArray(data.maintenance)?data.maintenance:Object.values(data.maintenance||{});state.incidents=Array.isArray(data.incidents)?data.incidents:Object.values(data.incidents||{});cloudReady=true;if(firstCloudSnapshot){knownIncidentIds=new Set(state.incidents.map(i=>i.id));firstCloudSnapshot=false}else{state.incidents.forEach(i=>{if(i.id&&!knownIncidentIds.has(i.id)){knownIncidentIds.add(i.id);if(i.status==='reported'){const m=state.machines.find(x=>x.id===i.machineId);const msg='بلاغ توقف جديد: '+(m?m.serial:'ماكينة')+' — '+(i.problem||'عطل');showToast(msg);playAlertSound();notifyBrowser('بلاغ توقف ماكينة',msg);}}});}render();},(error)=>{console.error(error);cloudReady=false;const status=$('cloudStatus');if(status){status.textContent='الاتصال مرفوض: '+error.message+' — راجع Firebase Realtime Database Rules';status.className='notice show error';}showToast('تعذر الاتصال بقاعدة البيانات: '+error.message);});}
+async function persist(){if(!cloudReady){showToast('استنى لحظة لحد ما الاتصال بقاعدة البيانات يكتمل');return false}try{await set(cloudStateRef,state);return true}catch(e){console.error(e);showToast('فشل الحفظ على الإنترنت: '+(e.message||'راجع قواعد Firebase'));return false}}
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function notifyBrowser(title,body){if('Notification' in window&&Notification.permission==='granted'){try{new Notification(title,{body,tag:'ibm-system-'+Date.now()});}catch(e){console.warn('Browser notification unavailable',e)}}}
+let audioContext=null;
+function playAlertSound(){try{const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;audioContext=audioContext||new AC();if(audioContext.state==='suspended')audioContext.resume();const now=audioContext.currentTime;[0,0.22,0.44].forEach((offset,index)=>{const osc=audioContext.createOscillator();const gain=audioContext.createGain();osc.type='sine';osc.frequency.value=index===1?1046:880;gain.gain.setValueAtTime(0.0001,now+offset);gain.gain.exponentialRampToValueAtTime(0.22,now+offset+0.025);gain.gain.exponentialRampToValueAtTime(0.0001,now+offset+0.18);osc.connect(gain);gain.connect(audioContext.destination);osc.start(now+offset);osc.stop(now+offset+0.2);});}catch(e){console.warn('Alert sound unavailable',e)}}
+function showToast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>t.classList.remove('show'),3200)}
+function notice(id,msg,type){const el=$(id);el.textContent=msg;el.className='notice show '+(type||'error')}
+function clearNotice(id){$(id).className='notice'}
+function fmtDate(d){return d?esc(d):'—'}
+function machineName(id){const m=state.machines.find(x=>x.id===id);return m?m.serial+' — '+m.type:'ماكينة محذوفة'}
+function tableEmpty(msg){return '<div class="empty">'+esc(msg)+'</div>'}
+function machinesMarkup(list,actions=true){if(!list.length)return tableEmpty('لا توجد ماكينات حتى الآن. اضغط «إضافة ماكينة» للبدء.');return '<div class="tablewrap"><table><thead><tr><th>رقم الماكينة</th><th>النوع</th><th>المكان</th><th>الحالة</th><th>آخر صيانة</th>'+(actions?'<th>إجراءات</th>':'')+'</tr></thead><tbody>'+list.map(m=>'<tr><td><strong>'+esc(m.serial)+'</strong></td><td>'+esc(m.type)+'</td><td>'+esc(m.location||'—')+'</td><td><span class="pill '+statusClass[m.status]+'">'+statusText[m.status]+'</span></td><td>'+fmtDate(m.lastDate)+'</td>'+(actions?'<td><div class="actions"><button class="btn soft tiny" data-edit-machine="'+m.id+'">تعديل</button><button class="btn soft tiny" data-machine-maint="'+m.id+'">صيانة</button><button class="btn danger tiny" data-delete-machine="'+m.id+'">حذف</button></div></td>':'')+'</tr>').join('')+'</tbody></table></div>'}
+function maintenanceMarkup(list){if(!list.length)return tableEmpty('لا توجد سجلات صيانة حتى الآن.');return '<div class="tablewrap"><table><thead><tr><th>التاريخ</th><th>الماكينة</th><th>العطل</th><th>الفني</th><th>التكلفة</th><th>الإجراء</th></tr></thead><tbody>'+list.map(x=>'<tr><td>'+fmtDate(x.date)+'</td><td><strong>'+esc(machineName(x.machineId))+'</strong></td><td>'+esc(x.problem)+'</td><td>'+esc(x.technician||'—')+'</td><td>'+esc(x.cost||'0')+'</td><td><button class="btn danger tiny" data-delete-maintenance="'+x.id+'">حذف</button></td></tr>').join('')+'</tbody></table></div>'}
+function render(){ $('totalMachines').textContent=state.machines.length;$('workingMachines').textContent=state.machines.filter(m=>m.status==='working').length;$('repairMachines').textContent=state.machines.filter(m=>m.status!=='working').length;$('totalMaintenance').textContent=state.maintenance.length;
+const sorted=[...state.machines].sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));$('recentMachines').innerHTML=machinesMarkup(sorted.slice(0,5),false);$('machinesTable').innerHTML=machinesMarkup(filterMachines(),true);
+const ms=[...state.maintenance].sort((a,b)=>(b.date||'').localeCompare(a.date||''));$('recentMaintenance').innerHTML=maintenanceMarkup(ms.slice(0,5));$('maintenanceTable').innerHTML=maintenanceMarkup(ms);const sel=$('maintenanceMachine');const old=sel.value;sel.innerHTML=state.machines.length?state.machines.map(m=>'<option value="'+m.id+'">'+esc(m.serial+' — '+m.type)+'</option>').join(''):'<option value="">أضف ماكينة أولًا</option>';if(state.machines.some(m=>m.id===old))sel.value=old;const incidentSel=$('incidentMachine');if(incidentSel){const prev=incidentSel.value;incidentSel.innerHTML=state.machines.length?state.machines.map(m=>'<option value="'+m.id+'">'+esc(m.serial+' — '+m.type)+'</option>').join(''):'<option value="">أضف ماكينة أولًا</option>';if(state.machines.some(m=>m.id===prev))incidentSel.value=prev;}const open=state.incidents.filter(i=>i.status!=='fixed');$('openIncidentCount').textContent=open.length;$('incidentsTable').innerHTML=incidentsMarkup([...state.incidents].sort((a,b)=>(b.reportedAt||'').localeCompare(a.reportedAt||'')));$('dashboardIncidents').innerHTML=incidentsMarkup(open.slice(0,5));
+}
+function timeText(v){if(!v)return '—';try{return new Date(v).toLocaleString('ar-EG',{dateStyle:'short',timeStyle:'short'})}catch(e){return v}}
+function incidentsMarkup(list){if(!list.length)return tableEmpty('لا توجد بلاغات أعطال.');return '<div class="tablewrap"><table><thead><tr><th>وقت البلاغ</th><th>الماكينة</th><th>العطل</th><th>المُبلّغ</th><th>الحالة</th><th>وقت الوصول</th><th>إجراءات</th></tr></thead><tbody>'+list.map(i=>{const status=i.status==='fixed'?'تم الإصلاح':i.status==='arrived'?'الفني وصل':'بانتظار الفني';const cls=i.status==='fixed'?'ok':i.status==='arrived'?'repair':'stop';return '<tr><td>'+timeText(i.reportedAt)+'</td><td><strong>'+esc(machineName(i.machineId))+'</strong><br><span class="muted">'+(i.priority==='urgent'?'🔴 عاجل':'عادي')+'</span></td><td>'+esc(i.problem)+'</td><td>'+esc(i.reporter||'—')+'</td><td><span class="pill '+cls+'">'+status+'</span></td><td>'+timeText(i.arrivedAt)+'</td><td><div class="actions">'+(i.status==='reported'?'<button class="btn primary tiny" data-arrive-incident="'+i.id+'">وصلت للماكينة</button>':'')+(i.status!=='fixed'?'<button class="btn soft tiny" data-fix-incident="'+i.id+'">تم الإصلاح</button>':'')+'</div></td></tr>'}).join('')+'</tbody></table></div>'}
+function filterMachines(){const q=$('machineSearch').value.trim().toLowerCase();return [...state.machines].filter(m=>[m.serial,m.type,m.brand,m.location].join(' ').toLowerCase().includes(q)).sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''))}
+function openModal(id){$(id).classList.add('open')}function closeModal(id){$(id).classList.remove('open')}
+function resetMachineForm(){ $('machineForm').reset();$('machineId').value='';$('machineModalTitle').textContent='إضافة ماكينة جديدة';$('saveMachineBtn').textContent='حفظ الماكينة';clearNotice('machineError')}
+function openMachine(id){resetMachineForm();if(id){const m=state.machines.find(x=>x.id===id);if(!m)return;$('machineModalTitle').textContent='تعديل بيانات الماكينة';$('machineId').value=m.id;$('serial').value=m.serial;$('type').value=m.type;$('brand').value=m.brand||'';$('location').value=m.location||'';$('status').value=m.status||'working';$('lastDate').value=m.lastDate||'';$('machineNotes').value=m.notes||'';$('saveMachineBtn').textContent='حفظ التعديلات'}openModal('machineModal')}
+function openMaintenance(machineId){$('maintenanceForm').reset();$('maintenanceDate').value=today();$('maintenanceCost').value='0';clearNotice('maintenanceError');render();if(machineId)$('maintenanceMachine').value=machineId;if(!state.machines.length){showToast('أضف ماكينة أولًا قبل تسجيل الصيانة');return}openModal('maintenanceModal')}
+// Reliable direct handlers for the incident-report buttons (independent of page-wide delegation).
+function openIncidentReport(){clearNotice('incidentError');$('incidentForm').reset();render();openModal('incidentModal');if(!state.machines.length)notice('incidentError','لا توجد ماكينات مسجلة بعد. أغلق النافذة وأضف ماكينة أولًا، ثم أرسل البلاغ.');}
+['reportIncidentTop','reportIncidentList'].forEach(id=>{const button=$(id);if(button)button.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();openIncidentReport();});});
+$('machineForm').addEventListener('submit',async function(e){e.preventDefault();const btn=$('saveMachineBtn');if(btn.disabled)return;const serial=$('serial').value.trim(),type=$('type').value.trim(),id=$('machineId').value;if(!serial||!type){notice('machineError','اكتب رقم الماكينة ونوعها أولًا.');return}if(state.machines.some(m=>m.serial.toLowerCase()===serial.toLowerCase()&&m.id!==id)){notice('machineError','رقم الماكينة موجود بالفعل. اختر رقمًا مختلفًا.');return}
+btn.disabled=true;btn.textContent='جارٍ الحفظ...';try{const old=state.machines.find(m=>m.id===id);const machine={id:id||('m_'+Date.now()+'_'+Math.random().toString(36).slice(2,7)),serial,type,brand:$('brand').value.trim(),location:$('location').value.trim(),status:$('status').value,lastDate:$('lastDate').value,notes:$('machineNotes').value.trim(),createdAt:old?.createdAt||new Date().toISOString(),updatedAt:new Date().toISOString()};if(old)state.machines=state.machines.map(m=>m.id===id?machine:m);else state.machines.push(machine);if(!await persist())throw Error('لم يتم حفظ البيانات على قاعدة البيانات. راجع اتصال الإنترنت وقواعد Realtime Database.');render();closeModal('machineModal');showToast(old?'تم حفظ تعديلات الماكينة بنجاح ✓':'تم حفظ الماكينة بنجاح ✓')}catch(err){notice('machineError','فشل الحفظ: '+err.message)}finally{btn.disabled=false;btn.textContent=$('machineId').value?'حفظ التعديلات':'حفظ الماكينة'}});
+$('maintenanceForm').addEventListener('submit',async function(e){e.preventDefault();const btn=$('saveMaintenanceBtn');if(btn.disabled)return;const machineId=$('maintenanceMachine').value,date=$('maintenanceDate').value,problem=$('problem').value.trim();if(!machineId||!date||!problem){notice('maintenanceError','اختر الماكينة واكتب التاريخ والعطل.');return}btn.disabled=true;btn.textContent='جارٍ الحفظ...';try{const entry={id:'r_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),machineId,date,technician:$('technician').value.trim(),cost:$('maintenanceCost').value||'0',problem,workDone:$('workDone').value.trim(),createdAt:new Date().toISOString()};state.maintenance.push(entry);const m=state.machines.find(x=>x.id===machineId);if(m){m.lastDate=date;m.status=$('afterStatus').value;m.updatedAt=new Date().toISOString()}if(!await persist())throw Error('لم يتم حفظ البيانات على قاعدة البيانات. راجع اتصال الإنترنت وقواعد Realtime Database.');render();closeModal('maintenanceModal');showToast('تم حفظ سجل الصيانة بنجاح ✓')}catch(err){notice('maintenanceError','فشل الحفظ: '+err.message)}finally{btn.disabled=false;btn.textContent='حفظ سجل الصيانة'}});
+$('incidentForm').addEventListener('submit',async function(e){e.preventDefault();const btn=$('saveIncidentBtn');if(btn.disabled)return;const machineId=$('incidentMachine').value,problem=$('incidentProblem').value.trim();if(!machineId||!problem){notice('incidentError','اختار الماكينة واكتب وصف العطل.');return}btn.disabled=true;btn.textContent='جارٍ إرسال البلاغ...';try{const now=new Date().toISOString();const incident={id:'i_'+Date.now()+'_'+Math.random().toString(36).slice(2,7),machineId,problem,reporter:$('incidentReporter').value.trim(),priority:$('incidentPriority').value,status:'reported',reportedAt:now,arrivedAt:null,fixedAt:null};state.incidents.push(incident);const m=state.machines.find(x=>x.id===machineId);if(m){m.status='stopped';m.updatedAt=now}if(!await persist())throw Error('تعذر إرسال البلاغ إلى Firebase. تحقق من اتصال الإنترنت والصلاحيات.');knownIncidentIds.add(incident.id);render();closeModal('incidentModal');goto('incidents');showToast('تم إرسال بلاغ التوقف بنجاح 🔔');playAlertSound();notifyBrowser('بلاغ توقف ماكينة','تم تسجيل توقف '+machineName(machineId));}catch(err){notice('incidentError','فشل إرسال البلاغ: '+err.message)}finally{btn.disabled=false;btn.textContent='إرسال البلاغ 🔔'}});
+document.addEventListener('click',async e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.view)goto(b.dataset.view);if(b.dataset.goto)goto(b.dataset.goto);if(b.dataset.close)closeModal(b.dataset.close);if(b.id==='addMachineTop')openMachine();if(b.id==='addMaintenanceTop')openMaintenance();if(b.id==='reportIncidentTop'||b.id==='reportIncidentList'){return}if(b.id==='enableNotifications'){playAlertSound();await enablePushNotifications()}if(b.dataset.arriveIncident){const i=state.incidents.find(x=>x.id===b.dataset.arriveIncident);if(i&&i.status==='reported'){i.status='arrived';i.arrivedAt=new Date().toISOString();i.technician=i.technician||prompt('اكتب اسم الفني الذي وصل:','')||'';if(await persist()){render();showToast('تم تسجيل وصول الفني ✓')}}}if(b.dataset.fixIncident){const i=state.incidents.find(x=>x.id===b.dataset.fixIncident);if(i&&confirm('تأكيد انتهاء الإصلاح؟')){i.status='fixed';i.fixedAt=new Date().toISOString();const m=state.machines.find(x=>x.id===i.machineId);if(m){m.status='working';m.lastDate=today();m.updatedAt=new Date().toISOString()}if(await persist()){render();showToast('تم تسجيل الإصلاح وإعادة الماكينة لحالة تعمل ✓')}}}if(b.dataset.editMachine)openMachine(b.dataset.editMachine);if(b.dataset.machineMaint)openMaintenance(b.dataset.machineMaint);if(b.dataset.deleteMachine){const id=b.dataset.deleteMachine;if(confirm('هل تريد حذف الماكينة؟ سيتم الإبقاء على سجلات الصيانة القديمة.')){state.machines=state.machines.filter(m=>m.id!==id);if(await persist()){render();showToast('تم حذف الماكينة')}}}if(b.dataset.deleteMaintenance){const id=b.dataset.deleteMaintenance;if(confirm('هل تريد حذف سجل الصيانة؟')){state.maintenance=state.maintenance.filter(x=>x.id!==id);if(await persist()){render();showToast('تم حذف سجل الصيانة')}}}});
+function goto(view){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id==='view-'+view));document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));$('pageTitle').textContent=({dashboard:'لوحة التحكم',machines:'إدارة الماكينات',maintenance:'سجلات الصيانة',incidents:'بلاغات الأعطال'})[view]||'EBM System';if(view==='machines'||view==='incidents')render()}
+$('machineSearch').addEventListener('input',()=>{$('machinesTable').innerHTML=machinesMarkup(filterMachines(),true)});
+$('backupBtn').addEventListener('click',()=>{const blob=new Blob([JSON.stringify({app:'EBM System',version:1,exportedAt:new Date().toISOString(),...state},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='EBM-backup-'+today()+'.json';a.click();URL.revokeObjectURL(url);showToast('تم تجهيز النسخة الاحتياطية')});
+render();load();
+})();
+</script>
+</body></html>
