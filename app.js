@@ -30,20 +30,26 @@ async function startCamera(){
 }
 async function captureSerial(){
  const video=$("scanVideo"),message=$("scanMessage"),button=$("captureSerial");
- if(!scanStream||!video.videoWidth){message.textContent="ابدأ الكاميرا أولًا.";return}
- button.disabled=true;message.textContent="جارٍ قراءة النص من الصورة… قد يستغرق ذلك قليلًا.";
+ if(!scanStream||!video.videoWidth){message.textContent="ابدأ الكاميرا أولًا وانتظر ظهور الصورة.";return}
+ button.disabled=true;message.textContent="جارٍ تجهيز قارئ النصوص…";
  try{
-  const canvas=document.createElement("canvas");canvas.width=video.videoWidth*2;canvas.height=video.videoHeight*2;
-  const ctx=canvas.getContext("2d");ctx.imageSmoothingEnabled=true;ctx.drawImage(video,0,0,canvas.width,canvas.height);
-  // Tesseract OCR reads ordinary printed letters/numbers, not only barcodes.
-  const { recognize } = await import("https://esm.sh/tesseract.js@5.1.1");
-  const result=await recognize(canvas.toDataURL("image/jpeg",0.95),"eng",{logger:m=>{if(m.status==="recognizing text")message.textContent=`جارٍ قراءة السيريال… ${Math.round((m.progress||0)*100)}٪`}});
-  const raw=(result?.data?.text||"").replace(/\s+/g," ").trim();
-  if(!raw){message.textContent="لم أستطع قراءة السيريال. قرّب الكاميرا، زوّد الإضاءة، وجرب مرة أخرى.";button.disabled=false;return}
-  // Keep likely serial characters and separators; user can verify/edit before saving.
-  const candidate=raw.split(/\n/).map(x=>x.trim()).filter(Boolean).sort((a,b)=>b.length-a.length)[0]||raw;
-  acceptScannedValue(candidate);
- }catch(err){console.error("OCR error:",err);message.textContent="تعذر تحميل قارئ النصوص. تأكد من الإنترنت ثم اضغط قراءة مرة أخرى.";button.disabled=false}
+  if(!window.Tesseract){throw new Error("Tesseract library did not load")}
+  const canvas=document.createElement("canvas");
+  // Capture the central region at higher resolution to improve serial-number recognition.
+  const sw=video.videoWidth, sh=video.videoHeight;
+  const cropX=Math.floor(sw*0.05), cropY=Math.floor(sh*0.20), cropW=Math.floor(sw*0.90), cropH=Math.floor(sh*0.60);
+  canvas.width=Math.min(cropW*2,2400);canvas.height=Math.min(cropH*2,1400);
+  const ctx=canvas.getContext("2d");ctx.filter="contrast(1.25) grayscale(1)";
+  ctx.drawImage(video,cropX,cropY,cropW,cropH,0,0,canvas.width,canvas.height);
+  message.textContent="جارٍ قراءة الحروف والأرقام…";
+  const result=await window.Tesseract.recognize(canvas,"eng",{
+   logger:m=>{if(m.status==="recognizing text")message.textContent=`جارٍ قراءة السيريال… ${Math.round((m.progress||0)*100)}٪`}
+  });
+  const raw=(result?.data?.text||"").replace(/[^A-Za-z0-9._\/-]+/g," ").trim();
+  const candidates=raw.split(/\s+/).filter(x=>x.length>=3).sort((a,b)=>b.length-a.length);
+  if(!candidates.length){message.textContent="لم أستطع قراءة الرقم. نظّف العدسة، قرّب السيريال، وثبّت الكاميرا ثم أعد المحاولة.";button.disabled=false;return}
+  acceptScannedValue(candidates[0]);
+ }catch(err){console.error("OCR error:",err);message.textContent="قارئ النصوص لم يحمّل. تأكد من الإنترنت وافتح الموقع من HTTPS ثم أعد المحاولة.";button.disabled=false}
 }
 function acceptScannedValue(value){
  const input=document.querySelector('#form input[name="serial"]');
