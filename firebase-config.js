@@ -2,7 +2,7 @@
 export const firebaseConfig = {
  apiKey: "AIzaSyA6GHkYt-BpjqoA51CZrJb3TjWXS-ux1LE",
  authDomain: "emtr-10091.firebaseapp.com",
- databaseURL: "https://emtr-10091-default-rtdb.firebaseio.com", // تأكد أن هذا هو الرابط الظاهر في Firebase Console؛ قد يختلف حسب منطقة قاعدة البيانات
+ databaseURL: "https://emtr-10091-default-rtdb.firebaseio.com/",
  projectId: "emtr-10091",
  storageBucket: "emtr-10091.firebasestorage.app",
  messagingSenderId: "640106990620",
