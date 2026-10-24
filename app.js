@@ -5,7 +5,7 @@ const $=id=>document.getElementById(id), KEY="ebm-fresh-v1";
 const blank=()=>({machines:[],reports:[],maintenance:[]});
 let state;try{state={...blank(),...JSON.parse(localStorage.getItem(KEY)||"{}")}}catch{state=blank()}
 let save=()=>{localStorage.setItem(KEY,JSON.stringify(state));render()}, mode="", timer;
-let audioCtx=null, scanStream=null, scanLoop=false, knownReportIds=new Set(state.reports.map(r=>r.id));
+let audioCtx=null, scanStream=null, scanLoop=false, knownReportIds=new Set(state.reports.map(r=>r.id)), highlightedReportId=null;
 async function playAlert(){
  try{
   const Ctx=window.AudioContext||window.webkitAudioContext;
@@ -15,6 +15,25 @@ async function playAlert(){
   const now=audioCtx.currentTime;
   [880,660,880].forEach((hz,i)=>{const o=audioCtx.createOscillator(),g=audioCtx.createGain(),t=now+i*.2;o.type="sine";o.frequency.value=hz;g.gain.setValueAtTime(.001,t);g.gain.exponentialRampToValueAtTime(.22,t+.025);g.gain.exponentialRampToValueAtTime(.001,t+.17);o.connect(g);g.connect(audioCtx.destination);o.start(t);o.stop(t+.18)});
  }catch(err){console.warn("Audio alert unavailable",err);msg("الصوت محجوب من المتصفح؛ اضغط زر التنبيهات مرة ثم جرّب")}
+}
+async function notifyIncomingReport(report){
+ // Automatically open the reports page and remove filters so the new report is visible.
+ view("reports");
+ if($("filter")) $("filter").value="all";
+ if($("search")) $("search").value="";
+ highlightedReportId=report.id;
+ render();
+ msg(`🚨 بلاغ جديد: ${report.machineName||"ماكينة"} — ${report.description||"عطل جديد"}`);
+ try{ await playAlert(); }catch(e){console.warn("Incoming report sound failed",e)}
+ if("Notification" in window && Notification.permission==="granted"){
+  try{
+   const n=new Notification("بلاغ عطل جديد على EBM System",{
+    body:`${report.machineName||"ماكينة"} — ${report.description||"تم تسجيل بلاغ جديد"}`,
+    tag:`ebm-report-${report.id}`
+   });
+   n.onclick=()=>{window.focus();view("reports");if($("filter")) $("filter").value="all";if($("search")) $("search").value="";highlightedReportId=report.id;render();n.close()};
+  }catch(e){console.warn("Browser notification failed",e)}
+ }
 }
 function stopCamera(){scanLoop=false;if(scanStream){scanStream.getTracks().forEach(t=>t.stop());scanStream=null}const v=$("scanVideo");if(v)v.srcObject=null;const b=$("captureSerial");if(b)b.disabled=true}
 async function startCamera(){
@@ -101,7 +120,7 @@ function render(){
  $("machinesN").textContent=state.machines.length;$("openN").textContent=open.length;$("fixedN").textContent=state.reports.length-open.length;$("maintN").textContent=state.maintenance.length;$("badge").textContent=open.length;
  $("machineRows").innerHTML=state.machines.map(m=>`<tr><td>${esc(m.code)}</td><td>${esc(m.name)}</td><td>${esc(m.serial||"—")}</td><td>${esc(m.department||"—")}</td><td><span class="pill ${m.status==="متوقفة"?"down":"ok"}">${esc(m.status||"تعمل")}</span></td><td>${esc(m.notes||"—")}</td><td><button class="mini" data-del-machine="${m.id}">حذف</button></td></tr>`).join("");$("machineEmpty").style.display=state.machines.length?"none":"block";
  let q=($("search").value||"").toLowerCase(),f=$("filter").value;let list=state.reports.filter(r=>(f==="all"||r.status===f)&&[r.machineName,r.machineCode,r.description,r.technician].join(" ").toLowerCase().includes(q));
- $("reportRows").innerHTML=list.map(r=>`<tr><td><b>${esc(r.machineName)}</b><br>${esc(r.machineCode)}</td><td>${esc(r.description)}</td><td>${esc(r.priority)}</td><td>${esc(r.technician||"—")}</td><td><span class="pill ${r.status}">${label(r.status)}</span></td><td>${esc(r.createdAt)}</td><td>${r.status==="open"?`<button class="mini" data-start="${r.id}">استلام</button>`:""} ${r.status!=="fixed"?`<button class="mini" data-fix="${r.id}">تم الإصلاح</button>`:""} <button class="mini" data-del-report="${r.id}">حذف</button></td></tr>`).join("");$("reportEmpty").style.display=list.length?"none":"block";
+ $("reportRows").innerHTML=list.map(r=>`<tr class="${r.id===highlightedReportId?"new-report":""}"><td><b>${esc(r.machineName)}</b><br>${esc(r.machineCode)}</td><td>${esc(r.description)}</td><td>${esc(r.priority)}</td><td>${esc(r.technician||"—")}</td><td><span class="pill ${r.status}">${label(r.status)}</span></td><td>${esc(r.createdAt)}</td><td>${r.status==="open"?`<button class="mini" data-start="${r.id}">استلام</button>`:""} ${r.status!=="fixed"?`<button class="mini" data-fix="${r.id}">تم الإصلاح</button>`:""} <button class="mini" data-del-report="${r.id}">حذف</button></td></tr>`).join("");$("reportEmpty").style.display=list.length?"none":"block";
  $("maintRows").innerHTML=state.maintenance.slice().reverse().map(m=>`<tr><td>${esc(m.date)}</td><td>${esc(m.machineName)} (${esc(m.machineCode)})</td><td>${esc(m.description)}</td><td>${esc(m.technician||"—")}</td></tr>`).join("");$("maintEmpty").style.display=state.maintenance.length?"none":"block";
  $("recent").innerHTML=state.reports.length?state.reports.slice(-4).reverse().map(r=>`<p style="display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid #edf1f6;padding:9px 0;font-size:12px"><span>${esc(r.machineName)}<br><small>${esc(r.description)}</small></span><span class="pill ${r.status}">${label(r.status)}</span></p>`).join(""):'<div class="empty">لا توجد بلاغات حتى الآن</div>';
  $("summary").innerHTML=state.machines.length?`<p>تعمل بشكل طبيعي: <b>${state.machines.filter(m=>m.status!=="متوقفة").length}</b></p><p>متوقفة / بها عطل: <b>${state.machines.filter(m=>m.status==="متوقفة").length}</b></p>`:'<div class="empty">أضف أول ماكينة لعرض الملخص</div>';
@@ -115,10 +134,16 @@ $("startScan").onclick=startCamera;$("captureSerial").onclick=captureSerial;$("s
 $("scanBackdrop").addEventListener("click",e=>{if(e.target===$("scanBackdrop")){stopCamera();$("scanBackdrop").classList.remove("show")}});
 $("addMachine").onclick=()=>modal("إضافة ماكينة",field("كود الماكينة","code","text","مثال: M-001")+field("اسم الماكينة","name","text","اسم الماكينة")+`<div class="field"><label>السيريال نمبر</label><div style="display:flex;gap:7px"><input name="serial" placeholder="اكتب السيريال أو صوّره بالكاميرا"><button type="button" id="scanSerial" class="btn">📷 تصوير</button></div><small style="color:#8a95a8">صوّر السيريال المكتوب، وسيحاول النظام قراءة الحروف والأرقام تلقائيًا.</small></div>`+field("القسم","department","text","قسم الخياطة",false)+`<div class="field"><label>الحالة</label><select name="status"><option>تعمل</option><option>متوقفة</option></select></div>`+field("ملاحظات","notes","textarea","",false),"machine");
 $("addReport").onclick=()=>{if(!state.machines.length){msg("أضف ماكينة أولًا");view("machines");return}modal("تسجيل بلاغ عطل",`<div class="field"><label>الماكينة</label><select name="machineId">${state.machines.map(m=>`<option value="${m.id}">${esc(m.code)} — ${esc(m.name)}</option>`).join("")}</select></div>`+field("وصف العطل","description","textarea","اشرح العطل")+field("اسم الفني","technician","text","اسم الفني",false)+`<div class="field"><label>الأولوية</label><select name="priority"><option>عادي</option><option>عاجل</option><option>حرج</option></select></div>`,"report")};
-$("form").onsubmit=e=>{e.preventDefault();let d=Object.fromEntries(new FormData(e.currentTarget));if(mode==="machine"){if(state.machines.some(m=>m.code.toLowerCase()===d.code.trim().toLowerCase())){msg("كود الماكينة مستخدم بالفعل");return}state.machines.push({id:crypto.randomUUID(),...d});msg("تمت إضافة الماكينة")}else{let m=state.machines.find(x=>x.id===d.machineId);state.reports.push({id:crypto.randomUUID(),machineId:m.id,machineName:m.name,machineCode:m.code,description:d.description,technician:d.technician,priority:d.priority,status:"open",createdAt:time()});m.status="متوقفة";msg("تم تسجيل البلاغ");playAlert();if("Notification"in window&&Notification.permission==="granted")new Notification("بلاغ عطل جديد",{body:m.name+" — "+d.description})}save();close()};
+$("form").onsubmit=e=>{e.preventDefault();let d=Object.fromEntries(new FormData(e.currentTarget));if(mode==="machine"){if(state.machines.some(m=>m.code.toLowerCase()===d.code.trim().toLowerCase())){msg("كود الماكينة مستخدم بالفعل");return}state.machines.push({id:crypto.randomUUID(),...d});msg("تمت إضافة الماكينة")}else{let m=state.machines.find(x=>x.id===d.machineId);const newReport={id:crypto.randomUUID(),machineId:m.id,machineName:m.name,machineCode:m.code,description:d.description,technician:d.technician,priority:d.priority,status:"open",createdAt:time()};knownReportIds.add(newReport.id);state.reports.push(newReport);m.status="متوقفة";highlightedReportId=newReport.id;view("reports");$("filter").value="all";$("search").value="";msg("تم تسجيل البلاغ: "+m.name);playAlert();if("Notification"in window&&Notification.permission==="granted")new Notification("بلاغ عطل جديد",{body:m.name+" — "+d.description})}save();close()};
 document.addEventListener("click",e=>{let t=e.target;if(t.id==="scanSerial"){$("scanBackdrop").classList.add("show");$("scanMessage").textContent="اضغط بدء الكاميرا واسمح باستخدام الكاميرا."}if(t.dataset.delMachine){if(state.reports.some(r=>r.machineId===t.dataset.delMachine)){msg("لا يمكن حذف ماكينة مرتبطة ببلاغ");return}if(confirm("حذف الماكينة؟")){state.machines=state.machines.filter(m=>m.id!==t.dataset.delMachine);save()}}if(t.dataset.delReport&&confirm("حذف البلاغ؟")){state.reports=state.reports.filter(r=>r.id!==t.dataset.delReport);save()}if(t.dataset.start){let r=state.reports.find(x=>x.id===t.dataset.start);r.status="working";r.startedAt=time();save();msg("تم تسجيل استلام البلاغ")}if(t.dataset.fix){let r=state.reports.find(x=>x.id===t.dataset.fix);if(confirm("تأكيد إنهاء الإصلاح؟")){r.status="fixed";state.maintenance.push({date:time(),machineName:r.machineName,machineCode:r.machineCode,description:r.description,technician:r.technician});let m=state.machines.find(x=>x.id===r.machineId);if(m&&!state.reports.some(x=>x.machineId===m.id&&x.id!==r.id&&x.status!=="fixed"))m.status="تعمل";save();msg("تم تسجيل الإصلاح في سجل الصيانة")}}});
 $("search").oninput=render;$("filter").onchange=render;
-$("alerts").onclick=async()=>{await playAlert();if(!("Notification"in window)){msg("جرّب الصوت الآن؛ المتصفح لا يدعم الإشعارات");return}let p=await Notification.requestPermission();msg(p==="granted"?"تم السماح بإشعارات المتصفح":"اسمح بالإشعارات من إعدادات الموقع إذا أردتها")};
+$("alerts").onclick=async()=>{
+ await playAlert();
+ if(!("Notification"in window)){msg("تم اختبار الصوت. اترك الموقع مفتوحًا على هذا الجهاز لاستقبال صوت البلاغات.");return}
+ let p=Notification.permission;
+ if(p==="default") p=await Notification.requestPermission();
+ msg(p==="granted"?"تم تفعيل الصوت وإشعارات البلاغات على هذا الجهاز. كرر الخطوة على كل جهاز.":"الصوت يعمل عند فتح الموقع، لكن إشعارات المتصفح غير مسموحة.");
+};
 let dbRef=null, firebaseReady=false, firstSnapshot=true, writing=false;
 const hasLocalData=()=>state.machines.length>0||state.reports.length>0||state.maintenance.length>0;
 function setConnection(text,color){$("connection").textContent=text;$("connection").style.color=color}
@@ -147,10 +172,13 @@ if(!firebaseConfig.databaseURL||firebaseConfig.databaseURL==="PASTE_REALTIME_DAT
     }
    } else if(remote && !writing){
     const incoming=Array.isArray(remote.reports)?remote.reports:[];
-    incoming.forEach(r=>knownReportIds.add(r.id));
+    // Alert only for reports newly received after the first cloud snapshot.
+    const newlyArrived=incoming.filter(r=>r && r.id && !knownReportIds.has(r.id) && r.status!=="fixed");
+    incoming.forEach(r=>{if(r && r.id) knownReportIds.add(r.id)});
     state={...blank(),...remote};
     localStorage.setItem(KEY,JSON.stringify(state));
     render();
+    newlyArrived.forEach(r=>{ void notifyIncomingReport(r); });
    }
    firebaseReady=true;
    setConnection("● متصل — البيانات مشتركة", "#19a974");
